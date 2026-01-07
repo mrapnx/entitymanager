@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Entity & Type Manager - Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f8fafc; color: #1e293b; scroll-behavior: smooth; }
+        .card { background: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); transition: all 0.3s ease; }
+        .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; }
+        .btn-primary { background-color: #3b82f6; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; transition: background 0.2s; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-primary:hover { background-color: #2563eb; }
+        .btn-secondary { background-color: #64748b; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-ghost { color: #64748b; border: 1px solid #cbd5e1; padding: 0.5rem 1rem; border-radius: 0.5rem; }
+        .input-field { width: 100%; border: 1px solid #cbd5e1; padding: 0.5rem; border-radius: 0.375rem; margin-top: 0.25rem; }
+        
+        .filter-tag { cursor: pointer; transition: all 0.2s; border: 1px solid #e2e8f0; }
+        .filter-tag.active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
+
+        /* Table Styles */
+        .table-container { overflow-x: auto; border-radius: 0.75rem; border: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th { background-color: #f1f5f9; text-align: left; padding: 0.75rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #64748b; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 0.75rem; border-bottom: 1px solid #f1f5f9; font-size: 0.875rem; vertical-align: middle; }
+        tr:hover { background-color: #f8fafc; }
+        .table-input { width: 100%; background: transparent; border: 1px solid transparent; padding: 0.25rem; border-radius: 0.25rem; }
+        .table-input:focus { background: white; border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+
+        .icon-btn { padding: 0.4rem; border-radius: 0.375rem; transition: background 0.2s; display: inline-flex; align-items: center; justify-content: center; }
+        .icon-btn-edit { color: #3b82f6; }
+        .icon-btn-edit:hover { background-color: #eff6ff; }
+        .icon-btn-delete { color: #ef4444; }
+        .icon-btn-delete:hover { background-color: #fef2f2; }
+        .icon-btn-goto { color: #10b981; }
+        .icon-btn-goto:hover { background-color: #ecfdf5; }
+        .icon-btn-sort { color: #94a3b8; }
+        .icon-btn-sort:hover { color: #3b82f6; background-color: #f1f5f9; }
+
+        @keyframes highlight {
+            0% { background-color: #dbeafe; transform: scale(1.02); }
+            100% { background-color: white; transform: scale(1); }
+        }
+        .highlight-target {
+            animation: highlight 2s ease-out;
+            border: 2px solid #3b82f6 !important;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-900">Entity Manager <span class="text-blue-500">v4.0</span></h1>
+                <p class="text-slate-500">Datenverwaltung mit steuerbarer Attribut-Reihenfolge.</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="exportData()" class="btn-secondary text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    Export JSON
+                </button>
+                <label class="btn-secondary text-sm cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                    Import JSON
+                    <input type="file" id="importInput" class="hidden" accept=".json" onchange="importData(event)">
+                </label>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <div class="flex border-b border-slate-200 mb-6">
+            <button onclick="switchTab('types')" id="tab-types" class="px-6 py-2 font-medium tab-active">Typ-Definitionen</button>
+            <button onclick="switchTab('entities')" id="tab-entities" class="px-6 py-2 font-medium">Entitäten</button>
+            <button onclick="switchTab('lists')" id="tab-lists" class="px-6 py-2 font-medium">Listen</button>
+        </div>
+
+        <!-- Section: Type Definitions -->
+        <section id="section-types" class="block">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Form -->
+                <div class="card p-6 h-fit">
+                    <h2 id="typeFormTitle" class="text-xl font-semibold mb-4 text-slate-800">Neuen Typ anlegen</h2>
+                    <input type="hidden" id="editTypeId">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-sm font-medium">Name des Typs</label>
+                            <input type="text" id="typeName" class="input-field" placeholder="z.B. Projekt">
+                        </div>
+                        <hr>
+                        <div id="attributeList" class="space-y-3">
+                            <h3 class="text-sm font-semibold">Attribute (Reihenfolge bestimmt Ansicht):</h3>
+                        </div>
+                        <button onclick="addAttributeRow()" class="text-sm text-blue-600 font-medium hover:underline">+ Attribut hinzufügen</button>
+                        <div class="flex gap-2 mt-4">
+                            <button id="saveTypeBtn" onclick="saveType()" class="btn-primary flex-1 justify-center">Typ speichern</button>
+                            <button id="cancelTypeBtn" onclick="resetTypeForm()" class="btn-ghost hidden">Abbrechen</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-2 space-y-4">
+                    <h2 class="text-xl font-semibold mb-4 text-slate-800">Verfügbare Typen</h2>
+                    <div id="typeDisplay" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Entities (Cards) -->
+        <section id="section-entities" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Create/Edit Form -->
+                <div class="card p-6 h-fit">
+                    <h2 id="entityFormTitle" class="text-xl font-semibold mb-4 text-slate-800">Entität erstellen/bearbeiten</h2>
+                    <input type="hidden" id="editEntityId">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-sm font-medium text-slate-600">Typ wählen</label>
+                            <select id="entityTypeSelect" class="input-field" onchange="renderEntityFormFields()">
+                                <option value="">-- Typ wählen --</option>
+                            </select>
+                        </div>
+                        <div id="entityFormFields" class="space-y-4"></div>
+                        <div class="flex gap-2">
+                            <button id="saveEntityBtn" onclick="saveEntity()" class="btn-primary flex-1 justify-center hidden">Speichern</button>
+                            <button id="cancelEntityBtn" onclick="resetEntityForm()" class="btn-ghost hidden">Abbrechen</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Entity List -->
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="space-y-4 bg-white p-4 rounded-xl border border-slate-200">
+                        <input type="text" id="entitySearch" class="input-field" placeholder="Suche..." oninput="renderEntities()">
+                        <div id="typeFilters" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <div id="entityDisplay" class="space-y-4 mt-6"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Lists (Table View) -->
+        <section id="section-lists" class="hidden">
+            <div class="card p-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <h2 class="text-xl font-semibold text-slate-800">Tabellarische Übersicht</h2>
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm font-medium text-slate-500 whitespace-nowrap">Anzeigen für Typ:</label>
+                        <select id="listTypeSelect" class="input-field !mt-0 w-64" onchange="renderListView()">
+                            <option value="">-- Typ wählen --</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="listTableContainer" class="table-container">
+                    <div class="p-12 text-center text-slate-400 italic">
+                        Wähle einen Typ aus, um die Liste zu bearbeiten.
+                    </div>
+                </div>
+
+                <div id="listActionContainer" class="mt-4 hidden">
+                    <button onclick="addNewEntityInList()" class="btn-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                        Entität hinzufügen
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div id="messageToast" class="fixed bottom-4 right-4 bg-slate-800 text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-20 transition-transform duration-300 pointer-events-none z-50">
+        Aktion erfolgreich!
+    </div>
+
+    <script>
+        // Icons
+        const ICON_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>`;
+        const ICON_DELETE = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>`;
+        const ICON_GOTO = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>`;
+        const ICON_UP = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" /></svg>`;
+        const ICON_DOWN = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>`;
+
+        // State
+        let appData = { types: [], entities: [] };
+        let activeTypeFilters = new Set();
+
+        // Utilities
+        function showMessage(text) {
+            const toast = document.getElementById('messageToast');
+            toast.innerText = text;
+            toast.classList.remove('translate-y-20');
+            setTimeout(() => toast.classList.add('translate-y-20'), 3000);
+        }
+
+        function switchTab(tab) {
+            ['types', 'entities', 'lists'].forEach(t => {
+                document.getElementById('section-' + t).classList.add('hidden');
+                document.getElementById('tab-' + t).classList.remove('tab-active');
+            });
+            document.getElementById('section-' + tab).classList.remove('hidden');
+            document.getElementById('tab-' + tab).classList.add('tab-active');
+
+            updateTypeSelects();
+            if (tab === 'entities') {
+                updateTypeFilterUI();
+                renderEntities();
+            } else if (tab === 'lists') {
+                renderListView();
+            } else {
+                renderTypes();
+            }
+        }
+
+        function navigateToEntity(entityId) {
+            switchTab('entities');
+            document.getElementById('entitySearch').value = '';
+            activeTypeFilters.clear();
+            updateTypeFilterUI();
+            renderEntities();
+            setTimeout(() => {
+                const el = document.getElementById('ent-card-' + entityId);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('highlight-target');
+                    setTimeout(() => el.classList.remove('highlight-target'), 2000);
+                }
+            }, 100);
+        }
+
+        // --- Type Management ---
+        function addAttributeRow(name = '', type = 'text', targetTypeId = '') {
+            const container = document.getElementById('attributeList');
+            const rowId = 'attr-' + Math.random().toString(36).substr(2, 9);
+            const div = document.createElement('div');
+            div.id = rowId;
+            div.className = 'flex flex-wrap gap-2 items-center attribute-row bg-slate-50 p-2 rounded border border-slate-100';
+            
+            let targetOptions = '<option value="">Alle Typen</option>';
+            appData.types.forEach(t => {
+                targetOptions += `<option value="${t.id}" ${targetTypeId === t.id ? 'selected' : ''}>-> ${t.name}</option>`;
+            });
+
+            div.innerHTML = `
+                <div class="flex flex-col gap-1">
+                    <button onclick="moveAttr('${rowId}', -1)" class="icon-btn icon-btn-sort" title="Hoch">${ICON_UP}</button>
+                    <button onclick="moveAttr('${rowId}', 1)" class="icon-btn icon-btn-sort" title="Runter">${ICON_DOWN}</button>
+                </div>
+                <input type="text" placeholder="Name" class="input-field text-sm flex-1 attr-name" value="${name}">
+                <div class="flex gap-1 items-center">
+                    <select class="input-field text-sm w-28 attr-type" onchange="toggleTargetSelect('${rowId}')">
+                        <option value="text" ${type === 'text' ? 'selected' : ''}>Text</option>
+                        <option value="int" ${type === 'int' ? 'selected' : ''}>Ganzzahl</option>
+                        <option value="decimal" ${type === 'decimal' ? 'selected' : ''}>Dezimal</option>
+                        <option value="link" ${type === 'link' ? 'selected' : ''}>Link</option>
+                    </select>
+                    <select class="input-field text-sm w-36 attr-target ${type === 'link' ? '' : 'hidden'}">
+                        ${targetOptions}
+                    </select>
+                    <button onclick="document.getElementById('${rowId}').remove()" class="text-red-500 p-1 hover:bg-red-50 rounded">×</button>
+                </div>`;
+            container.appendChild(div);
+        }
+
+        function moveAttr(id, direction) {
+            const row = document.getElementById(id);
+            if (direction === -1 && row.previousElementSibling && row.previousElementSibling.tagName === 'DIV') {
+                row.parentNode.insertBefore(row, row.previousElementSibling);
+            } else if (direction === 1 && row.nextElementSibling) {
+                row.parentNode.insertBefore(row.nextElementSibling, row);
+            }
+        }
+
+        function toggleTargetSelect(rowId) {
+            const row = document.getElementById(rowId);
+            const type = row.querySelector('.attr-type').value;
+            row.querySelector('.attr-target').classList.toggle('hidden', type !== 'link');
+        }
+
+        function resetTypeForm() {
+            document.getElementById('typeFormTitle').innerText = "Neuen Typ anlegen";
+            document.getElementById('editTypeId').value = "";
+            document.getElementById('typeName').value = "";
+            document.getElementById('attributeList').innerHTML = '<h3 class="text-sm font-semibold">Attribute (Reihenfolge bestimmt Ansicht):</h3>';
+            document.getElementById('cancelTypeBtn').classList.add('hidden');
+            addAttributeRow();
+        }
+
+        function saveType() {
+            const name = document.getElementById('typeName').value.trim();
+            const editId = document.getElementById('editTypeId').value;
+            if (!name) return showMessage("Name fehlt");
+            
+            const attributes = [];
+            document.querySelectorAll('.attribute-row').forEach(row => {
+                const aName = row.querySelector('.attr-name').value.trim();
+                const aType = row.querySelector('.attr-type').value;
+                const aTarget = row.querySelector('.attr-target').value;
+                if (aName) attributes.push({ name: aName, type: aType, targetTypeId: aType === 'link' ? aTarget : null });
+            });
+
+            if (editId) {
+                const idx = appData.types.findIndex(t => t.id === editId);
+                appData.types[idx] = { ...appData.types[idx], name, attributes };
+            } else {
+                appData.types.push({ id: 'type-' + Date.now(), name, attributes });
+            }
+            
+            resetTypeForm();
+            renderTypes();
+            updateTypeSelects();
+            showMessage("Typ gespeichert");
+        }
+
+        function renderTypes() {
+            const container = document.getElementById('typeDisplay');
+            container.innerHTML = '';
+            appData.types.forEach(type => {
+                const div = document.createElement('div');
+                div.className = 'card p-4 border-l-4 border-blue-500';
+                div.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="font-bold text-slate-800">${type.name}</h3>
+                        <div class="flex gap-1">
+                            <button onclick="editType('${type.id}')" class="icon-btn icon-btn-edit" title="Bearbeiten">${ICON_EDIT}</button>
+                            <button onclick="deleteType('${type.id}')" class="icon-btn icon-btn-delete" title="Löschen">${ICON_DELETE}</button>
+                        </div>
+                    </div>
+                    <ul class="text-[11px] text-slate-500">
+                        ${type.attributes.map(a => `<li>• ${a.name} (${a.type})</li>`).join('')}
+                    </ul>`;
+                container.appendChild(div);
+            });
+        }
+
+        function editType(id) {
+            const type = appData.types.find(t => t.id === id);
+            document.getElementById('typeFormTitle').innerText = "Typ bearbeiten";
+            document.getElementById('editTypeId').value = type.id;
+            document.getElementById('typeName').value = type.name;
+            document.getElementById('attributeList').innerHTML = '<h3 class="text-sm font-semibold">Attribute (Reihenfolge bestimmt Ansicht):</h3>';
+            document.getElementById('cancelTypeBtn').classList.remove('hidden');
+            type.attributes.forEach(a => addAttributeRow(a.name, a.type, a.targetTypeId));
+        }
+
+        function deleteType(id) {
+            if (!confirm("Typ und alle zugehörigen Daten löschen?")) return;
+            appData.types = appData.types.filter(t => t.id !== id);
+            appData.entities = appData.entities.filter(e => e.typeId !== id);
+            renderTypes();
+            updateTypeSelects();
+        }
+
+        // --- Entity Logic ---
+        function updateTypeSelects() {
+            ['entityTypeSelect', 'listTypeSelect'].forEach(id => {
+                const select = document.getElementById(id);
+                const cur = select.value;
+                select.innerHTML = '<option value="">-- Typ wählen --</option>';
+                appData.types.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.id; opt.textContent = t.name; select.appendChild(opt);
+                });
+                select.value = cur;
+            });
+        }
+
+        function updateTypeFilterUI() {
+            const container = document.getElementById('typeFilters');
+            container.innerHTML = '';
+            appData.types.forEach(type => {
+                const tag = document.createElement('div');
+                const isActive = activeTypeFilters.has(type.id);
+                tag.className = `filter-tag px-3 py-1 rounded-full text-xs font-medium ${isActive ? 'active' : 'bg-white text-slate-600'}`;
+                tag.innerText = type.name;
+                tag.onclick = () => {
+                    isActive ? activeTypeFilters.delete(type.id) : activeTypeFilters.add(type.id);
+                    updateTypeFilterUI();
+                    renderEntities();
+                };
+                container.appendChild(tag);
+            });
+        }
+
+        function renderEntityFormFields(existingValues = null) {
+            const typeId = document.getElementById('entityTypeSelect').value;
+            const container = document.getElementById('entityFormFields');
+            const saveBtn = document.getElementById('saveEntityBtn');
+            const cancelBtn = document.getElementById('cancelEntityBtn');
+            container.innerHTML = '';
+            if (!typeId) { 
+                saveBtn.classList.add('hidden'); 
+                cancelBtn.classList.add('hidden'); 
+                return; 
+            }
+            
+            const type = appData.types.find(t => t.id === typeId);
+            // Nutze die sortierte Reihenfolge der Attribute
+            type.attributes.forEach(attr => {
+                const val = existingValues ? existingValues[attr.name] : '';
+                let input = '';
+                if (attr.type === 'link') {
+                    const targets = attr.targetTypeId ? appData.entities.filter(e => e.typeId === attr.targetTypeId) : appData.entities;
+                    input = `<select class="input-field entity-val" data-attr="${attr.name}" data-type="link">
+                        <option value="">-- Keine --</option>
+                        ${targets.map(e => `<option value="${e.id}" ${val === e.id ? 'selected' : ''}>${e.values[Object.keys(e.values)[0]] || e.id}</option>`).join('')}
+                    </select>`;
+                } else {
+                    input = `<input type="${attr.type === 'int' || attr.type === 'decimal' ? 'number' : 'text'}" 
+                             class="input-field entity-val" data-attr="${attr.name}" data-type="${attr.type}" value="${val || ''}">`;
+                }
+                container.innerHTML += `<div class="mb-2"><label class="text-[10px] font-bold text-slate-400 uppercase">${attr.name}</label>${input}</div>`;
+            });
+            saveBtn.classList.remove('hidden');
+            cancelBtn.classList.remove('hidden');
+        }
+
+        function saveEntity() {
+            const typeId = document.getElementById('entityTypeSelect').value;
+            const editId = document.getElementById('editEntityId').value;
+            const values = {};
+            document.querySelectorAll('.entity-val').forEach(inp => {
+                const k = inp.getAttribute('data-attr');
+                const t = inp.getAttribute('data-type');
+                values[k] = t === 'int' ? parseInt(inp.value) || 0 : (t === 'decimal' ? parseFloat(inp.value) || 0 : inp.value);
+            });
+            if (editId) {
+                const idx = appData.entities.findIndex(e => e.id === editId);
+                appData.entities[idx].values = values;
+            } else {
+                appData.entities.push({ id: 'ent-' + Date.now(), typeId, values });
+            }
+            resetEntityForm();
+            renderEntities();
+            showMessage("Entität gespeichert");
+        }
+
+        function resetEntityForm() {
+            document.getElementById('editEntityId').value = "";
+            document.getElementById('entityTypeSelect').value = "";
+            document.getElementById('entityTypeSelect').disabled = false;
+            document.getElementById('entityFormFields').innerHTML = "";
+            document.getElementById('saveEntityBtn').classList.add('hidden');
+            document.getElementById('cancelEntityBtn').classList.add('hidden');
+        }
+
+        function renderEntities() {
+            const container = document.getElementById('entityDisplay');
+            const search = document.getElementById('entitySearch').value.toLowerCase();
+            container.innerHTML = '';
+            const filtered = appData.entities.filter(e => {
+                if (activeTypeFilters.size > 0 && !activeTypeFilters.has(e.typeId)) return false;
+                return Object.values(e.values).join(' ').toLowerCase().includes(search);
+            });
+            filtered.forEach(ent => {
+                const type = appData.types.find(t => t.id === ent.typeId);
+                const div = document.createElement('div');
+                div.id = 'ent-card-' + ent.id;
+                div.className = 'card p-4 relative';
+                
+                let rows = '';
+                // Nutze hier die Reihenfolge aus der Typ-Definition
+                type.attributes.forEach(a => {
+                    let v = ent.values[a.name] !== undefined ? ent.values[a.name] : '-';
+                    if (a.type === 'link' && v !== '-') {
+                        const target = appData.entities.find(x => x.id === v);
+                        const label = target ? (target.values[Object.keys(target.values)[0]] || target.id) : 'Gelöscht';
+                        v = `<button onclick="navigateToEntity('${v}')" class="text-blue-600 hover:underline inline-flex items-center gap-1">🔗 ${label}</button>`;
+                    }
+                    rows += `<div class="flex text-xs py-1 border-b border-slate-50">
+                        <span class="w-1/3 text-slate-400 uppercase font-bold">${a.name}:</span>
+                        <span class="w-2/3 text-slate-700">${v}</span>
+                    </div>`;
+                });
+
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[10px] font-bold px-2 py-0.5 bg-slate-100 rounded text-slate-500">${type.name}</span>
+                        <div class="flex gap-1">
+                            <button onclick="editEntity('${ent.id}')" class="icon-btn icon-btn-edit" title="Bearbeiten">${ICON_EDIT}</button>
+                            <button onclick="deleteEntity('${ent.id}')" class="icon-btn icon-btn-delete" title="Löschen">${ICON_DELETE}</button>
+                        </div>
+                    </div>
+                    <div>${rows}</div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function editEntity(id) {
+            const ent = appData.entities.find(e => e.id === id);
+            document.getElementById('editEntityId').value = ent.id;
+            document.getElementById('entityTypeSelect').value = ent.typeId;
+            document.getElementById('entityTypeSelect').disabled = true;
+            renderEntityFormFields(ent.values);
+        }
+
+        function deleteEntity(id) {
+            if (!confirm("Löschen?")) return;
+            appData.entities = appData.entities.filter(e => e.id !== id);
+            renderEntities();
+            renderListView();
+        }
+
+        // --- List View (Table) Logic ---
+        function renderListView() {
+            const typeId = document.getElementById('listTypeSelect').value;
+            const container = document.getElementById('listTableContainer');
+            const actionContainer = document.getElementById('listActionContainer');
+            
+            if (!typeId) {
+                container.innerHTML = '<div class="p-12 text-center text-slate-400 italic">Wähle einen Typ aus, um die Liste zu bearbeiten.</div>';
+                actionContainer.classList.add('hidden');
+                return;
+            }
+
+            actionContainer.classList.remove('hidden');
+            const type = appData.types.find(t => t.id === typeId);
+            const entities = appData.entities.filter(e => e.typeId === typeId);
+
+            // Kopfzeile basierend auf der Attribut-Reihenfolge
+            let header = '<thead><tr><th>ID</th>';
+            type.attributes.forEach(a => header += `<th>${a.name} ${a.type === 'link' ? '<span class="text-[9px] text-slate-400">(Link)</span>' : ''}</th>`);
+            header += '<th class="w-10"></th></tr></thead>';
+
+            let body = '<tbody>';
+            entities.forEach(ent => {
+                body += `<tr><td class="text-[10px] font-mono text-slate-400">${ent.id.slice(-5)}</td>`;
+                type.attributes.forEach(a => {
+                    body += `<td>
+                        <div class="flex items-center gap-2">
+                            ${renderTableInlineEdit(ent, a)}
+                            ${(a.type === 'link' && ent.values[a.name]) ? `<button onclick="navigateToEntity('${ent.values[a.name]}')" class="icon-btn icon-btn-goto" title="Zum Ziel springen">${ICON_GOTO}</button>` : ''}
+                        </div>
+                    </td>`;
+                });
+                body += `<td><button onclick="deleteEntity('${ent.id}'); renderListView();" class="icon-btn icon-btn-delete" title="Löschen">${ICON_DELETE}</button></td></tr>`;
+            });
+            body += '</tbody>';
+
+            if (entities.length === 0) {
+                body = `<tr><td colspan="${type.attributes.length + 2}" class="p-8 text-center text-slate-400">Keine Entitäten für diesen Typ vorhanden.</td></tr>`;
+            }
+
+            container.innerHTML = `<table>${header}${body}</table>`;
+        }
+
+        function renderTableInlineEdit(entity, attrDef) {
+            const val = entity.values[attrDef.name] !== undefined ? entity.values[attrDef.name] : '';
+            if (attrDef.type === 'link') {
+                const targets = attrDef.targetTypeId ? appData.entities.filter(e => e.typeId === attrDef.targetTypeId) : appData.entities;
+                return `<select class="table-input flex-1" onchange="updateEntityValue('${entity.id}', '${attrDef.name}', this.value); renderListView();">
+                    <option value="">-- Keine --</option>
+                    ${targets.map(t => `<option value="${t.id}" ${val === t.id ? 'selected' : ''}>${t.values[Object.keys(t.values)[0]] || t.id}</option>`).join('')}
+                </select>`;
+            } else {
+                return `<input type="${attrDef.type === 'int' || attrDef.type === 'decimal' ? 'number' : 'text'}" 
+                        class="table-input" value="${val}" 
+                        onchange="updateEntityValue('${entity.id}', '${attrDef.name}', this.value, '${attrDef.type}')">`;
+            }
+        }
+
+        function addNewEntityInList() {
+            const typeId = document.getElementById('listTypeSelect').value;
+            if (!typeId) return;
+            const type = appData.types.find(t => t.id === typeId);
+            const values = {};
+            type.attributes.forEach(a => values[a.name] = (a.type === 'int' || a.type === 'decimal') ? 0 : '');
+            
+            const newId = 'ent-' + Date.now();
+            appData.entities.push({ id: newId, typeId, values });
+            renderListView();
+            showMessage("Neue Entität hinzugefügt");
+        }
+
+        function updateEntityValue(entityId, attrName, value, type) {
+            const ent = appData.entities.find(e => e.id === entityId);
+            if (ent) {
+                let finalVal = value;
+                if (type === 'int') finalVal = parseInt(value) || 0;
+                else if (type === 'decimal') finalVal = parseFloat(value) || 0;
+                ent.values[attrName] = finalVal;
+                showMessage("Wert aktualisiert");
+            }
+        }
+
+        // Persistence
+        function exportData() {
+            const blob = new Blob([JSON.stringify(appData, null, 2)], { type: "application/json" });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `manager_export_${new Date().getTime()}.json`;
+            a.click();
+        }
+
+        function importData(e) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                appData = JSON.parse(ev.target.result);
+                renderTypes();
+                updateTypeSelects();
+                showMessage("Import erfolgreich");
+            };
+            reader.readAsText(e.target.files[0]);
+        }
+
+        window.onload = () => { resetTypeForm(); renderTypes(); updateTypeSelects(); };
+    </script>
+</body>
+</html>
