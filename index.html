@@ -17,11 +17,9 @@
         .filter-tag { cursor: pointer; transition: all 0.2s; border: 1px solid #e2e8f0; }
         .filter-tag.active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
 
-        /* Modal Styles */
         #configModal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
         .modal-content { background: white; width: 95%; max-width: 900px; max-height: 90vh; overflow-y: auto; border-radius: 1rem; padding: 2rem; position: relative; }
 
-        /* Table Styles */
         .table-container { overflow-x: auto; border-radius: 0.75rem; border: 1px solid #e2e8f0; }
         table { width: 100%; border-collapse: collapse; background: white; }
         th { background-color: #f1f5f9; text-align: left; padding: 0.75rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #64748b; border-bottom: 2px solid #e2e8f0; }
@@ -36,7 +34,6 @@
         .icon-btn-delete { color: #ef4444; }
         .icon-btn-delete:hover { background-color: #fef2f2; }
 
-        /* Mindmap Canvas */
         #mindmapContainer { position: relative; width: 100%; height: 750px; background: #f1f5f9; border-radius: 0.75rem; border: 1px solid #e2e8f0; overflow: hidden; }
         
         @keyframes highlight {
@@ -54,8 +51,8 @@
     <div class="max-w-7xl mx-auto">
         <header class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-                <h1 class="text-3xl font-bold text-slate-900">Entity Manager <span class="text-blue-500 text-lg">v9.1</span></h1>
-                <p class="text-slate-500">Zentrale Datenverwaltung mit Attribut-Sorting, Inline-Edit & Detail-Graph.</p>
+                <h1 class="text-3xl font-bold text-slate-900">Entity Manager <span class="text-blue-500 text-lg">v10.0</span></h1>
+                <p class="text-slate-500">Zentrale Datenverwaltung mit Karten-Graph, Inline-Edit & Attribut-Sorting.</p>
             </div>
             <div class="flex items-center gap-3">
                 <button onclick="toggleConfigModal(true)" class="btn-ghost !border-slate-300 flex items-center gap-2 hover:bg-slate-50">
@@ -75,14 +72,12 @@
             </div>
         </header>
 
-        <!-- Navigation Tabs -->
         <div class="flex border-b border-slate-200 mb-6 overflow-x-auto whitespace-nowrap">
             <button onclick="switchTab('entities')" id="tab-entities" class="px-6 py-2 font-medium tab-active">Karten-Ansicht</button>
             <button onclick="switchTab('lists')" id="tab-lists" class="px-6 py-2 font-medium">Tabellen-Ansicht</button>
             <button onclick="switchTab('mindmap')" id="tab-mindmap" class="px-6 py-2 font-medium">Graph-Ansicht</button>
         </div>
 
-        <!-- Section: Entities (Cards) -->
         <section id="section-entities" class="block">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="card p-6 h-fit">
@@ -115,7 +110,6 @@
             </div>
         </section>
 
-        <!-- Section: List (Table) -->
         <section id="section-lists" class="hidden">
             <div class="card p-6">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -132,12 +126,11 @@
             </div>
         </section>
 
-        <!-- Section: Mindmap -->
         <section id="section-mindmap" class="hidden">
             <div class="card p-6">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-xl font-semibold text-slate-800">Graph-Struktur</h2>
-                    <button onclick="prepareMindmapData()" class="text-sm text-blue-600">Layout Reset</button>
+                    <p class="text-xs text-slate-400">Ziehen Sie die Karten, um das Layout anzupassen.</p>
                 </div>
                 <div id="mindmapContainer">
                     <canvas id="mindmapCanvas"></canvas>
@@ -146,7 +139,6 @@
         </section>
     </div>
 
-    <!-- Configuration Modal -->
     <div id="configModal">
         <div class="modal-content shadow-2xl">
             <button onclick="toggleConfigModal(false)" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
@@ -211,7 +203,6 @@
             return withType ? `${type.name}: ${name}` : name;
         }
 
-        // --- View Switching ---
         function switchTab(tab) {
             currentTab = tab;
             ['entities', 'lists', 'mindmap'].forEach(t => {
@@ -228,7 +219,6 @@
             else refreshAllViews();
         }
 
-        // --- Type Configuration ---
         function addAttributeRow(name = '', type = 'text', target = '') {
             const container = document.getElementById('attributeList');
             const rowId = 'attr-' + Math.random().toString(36).substr(2, 9);
@@ -308,7 +298,6 @@
             document.getElementById('attributeList').innerHTML = ""; document.getElementById('cancelTypeBtn').classList.add('hidden');
         }
 
-        // --- Entity Logic (Forms & Cards) ---
         function renderEntityFormFields(existing = null) {
             const typeId = document.getElementById('entityTypeSelect').value;
             const container = document.getElementById('entityFormFields');
@@ -385,7 +374,6 @@
             });
         }
 
-        // --- Table View (Inline-Edit & Quick-Add) ---
         function renderListView() {
             const typeId = document.getElementById('listTypeSelect').value, container = document.getElementById('listTableContainer');
             const quickAdd = document.getElementById('quickAddContainer');
@@ -473,7 +461,6 @@
             showMessage("Datensatz in Tabelle angelegt");
         }
 
-        // --- Helpers ---
         function navigateToEntity(id) {
             switchTab('entities');
             setTimeout(() => {
@@ -531,9 +518,11 @@
             if (currentTab === 'lists') renderListView();
         }
 
-        // --- Graph Logic (WITH ATTRIBUTES) ---
+        // --- GRAPH LOGIC (CARD-BASED) ---
         let nodes = [], links = [], canvas, ctx, animationId, draggedNode = null;
         const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+        const CARD_WIDTH = 160;
+        const CARD_PADDING = 12;
 
         function initMindmap() {
             canvas = document.getElementById('mindmapCanvas');
@@ -553,23 +542,26 @@
                 const type = appData.types.find(t => t.id === ent.typeId);
                 const typeIdx = appData.types.findIndex(t => t.id === ent.typeId);
                 
-                // Extrahiere Attribute für die Anzeige im Graphen
-                const attrStrings = type.attributes.map(attr => {
+                const attrs = type.attributes.map(attr => {
                     const val = ent.values[attr.name];
-                    if (!val) return null;
-                    const displayVal = attr.type === 'link' ? getEntityLabel(val, false) : val;
-                    return `${attr.name}: ${displayVal}`;
-                }).filter(s => s !== null);
+                    const displayVal = (attr.type === 'link' && val) ? getEntityLabel(val, false) : (val || '-');
+                    return { label: attr.name, value: displayVal };
+                });
+
+                // Calculate card height based on attribute count
+                const height = 60 + (attrs.length * 14) + 10;
 
                 return {
                     id: ent.id,
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
+                    x: Math.random() * (canvas.width - CARD_WIDTH) + CARD_WIDTH/2,
+                    y: Math.random() * (canvas.height - height) + height/2,
                     vx: 0, vy: 0, 
                     label: getEntityLabel(ent.id, false),
                     type: type.name,
-                    attributes: attrStrings,
-                    color: colors[typeIdx % colors.length]
+                    attributes: attrs,
+                    color: colors[typeIdx % colors.length],
+                    w: CARD_WIDTH,
+                    h: height
                 };
             });
             links = [];
@@ -590,7 +582,7 @@
         }
 
         function updatePhysics() {
-            const kRep = 3000, kSpring = 0.02, friction = 0.85, centerF = 0.003;
+            const kRep = 8000, kSpring = 0.015, friction = 0.8, centerF = 0.002;
             nodes.forEach((n1, i) => {
                 nodes.forEach((n2, j) => {
                     if (i === j) return;
@@ -603,7 +595,7 @@
                 let s = nodes.find(n => n.id === l.source), t = nodes.find(n => n.id === l.target);
                 if (!s || !t) return;
                 let dx = t.x - s.x, dy = t.y - s.y, dist = Math.sqrt(dx*dx + dy*dy) || 1;
-                let force = (dist - 180) * kSpring;
+                let force = (dist - 250) * kSpring;
                 s.vx += (dx / dist) * force; s.vy += (dy / dist) * force;
                 t.vx -= (dx / dist) * force; t.vy -= (dy / dist) * force;
             });
@@ -611,41 +603,96 @@
                 if (n === draggedNode) return;
                 n.vx += (canvas.width/2 - n.x) * centerF; n.vy += (canvas.height/2 - n.y) * centerF;
                 n.x += n.vx; n.y += n.vy; n.vx *= friction; n.vy *= friction;
+                
+                // Bounds
+                if(n.x < n.w/2) n.x = n.w/2; if(n.x > canvas.width - n.w/2) n.x = canvas.width - n.w/2;
+                if(n.y < n.h/2) n.y = n.h/2; if(n.y > canvas.height - n.h/2) n.y = canvas.height - n.h/2;
             });
         }
 
         function drawMindmap() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw Links
             links.forEach(l => {
                 let s = nodes.find(n => n.id === l.source), t = nodes.find(n => n.id === l.target);
                 if (!s || !t) return;
-                ctx.beginPath(); ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2;
                 ctx.moveTo(s.x, s.y); ctx.lineTo(t.x, t.y); ctx.stroke();
             });
-            nodes.forEach(n => {
-                // Node Circle
-                ctx.beginPath(); ctx.fillStyle = n.color; ctx.shadowBlur = 4; ctx.shadowColor = 'rgba(0,0,0,0.1)';
-                ctx.arc(n.x, n.y, 10, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
-                
-                // Label (Name)
-                ctx.fillStyle = '#1e293b'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
-                ctx.fillText(n.label, n.x, n.y - 20);
-                
-                // Type Tag
-                ctx.fillStyle = n.color; ctx.font = '8px sans-serif';
-                ctx.fillText(n.type.toUpperCase(), n.x, n.y - 35);
 
-                // Attributes List
-                ctx.fillStyle = '#64748b'; ctx.font = '9px sans-serif';
+            // Draw Cards
+            nodes.forEach(n => {
+                const x = n.x - n.w/2, y = n.y - n.h/2;
+                
+                // Shadow
+                ctx.shadowBlur = 10; ctx.shadowColor = 'rgba(0,0,0,0.05)';
+                ctx.shadowOffsetY = 4;
+                
+                // Card Body
+                ctx.fillStyle = '#ffffff';
+                drawRoundedRect(ctx, x, y, n.w, n.h, 12, true, false);
+                ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+                // Border
+                ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
+                drawRoundedRect(ctx, x, y, n.w, n.h, 12, false, true);
+
+                // Type Accent (Top Border)
+                ctx.fillStyle = n.color;
+                drawRoundedRect(ctx, x, y, n.w, 4, {tl: 12, tr: 12, bl: 0, br: 0}, true, false);
+
+                // Header / Type
+                ctx.fillStyle = n.color; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'left';
+                ctx.fillText(n.type.toUpperCase(), x + 10, y + 18);
+
+                // Title
+                ctx.fillStyle = '#1e293b'; ctx.font = 'bold 11px sans-serif';
+                ctx.fillText(n.label, x + 10, y + 34);
+
+                // Attributes
                 n.attributes.forEach((attr, idx) => {
-                    ctx.fillText(attr, n.x, n.y + 25 + (idx * 12));
+                    const ay = y + 52 + (idx * 14);
+                    // Label
+                    ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 7px sans-serif';
+                    ctx.fillText(attr.label.toUpperCase(), x + 10, ay);
+                    // Value
+                    ctx.fillStyle = '#475569'; ctx.font = '9px sans-serif';
+                    const val = attr.value.length > 20 ? attr.value.substring(0, 18) + '...' : attr.value;
+                    ctx.fillText(val, x + 60, ay);
+                    
+                    // Separator
+                    ctx.strokeStyle = '#f1f5f9'; ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(x + 10, ay + 4); ctx.lineTo(x + n.w - 10, ay + 4); ctx.stroke();
                 });
             });
         }
 
+        function drawRoundedRect(ctx, x, y, width, height, radius, fill, stroke) {
+            let r = {tl: 0, tr: 0, bl: 0, br: 0};
+            if (typeof radius === 'number') r = {tl: radius, tr: radius, bl: radius, br: radius};
+            else r = {...r, ...radius};
+
+            ctx.beginPath();
+            ctx.moveTo(x + r.tl, y);
+            ctx.lineTo(x + width - r.tr, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + r.tr);
+            ctx.lineTo(x + width, y + height - r.br);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - r.br, y + height);
+            ctx.lineTo(x + r.bl, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - r.bl);
+            ctx.lineTo(x, y + r.tl);
+            ctx.quadraticCurveTo(x, y, x + r.tl, y);
+            ctx.closePath();
+            if (fill) ctx.fill();
+            if (stroke) ctx.stroke();
+        }
+
         function handleMouseDown(e) {
             const r = canvas.getBoundingClientRect(); const x = e.clientX - r.left, y = e.clientY - r.top;
-            draggedNode = nodes.find(n => Math.sqrt((x-n.x)**2 + (y-n.y)**2) < 30) || null;
+            draggedNode = nodes.find(n => {
+                return x >= n.x - n.w/2 && x <= n.x + n.w/2 && y >= n.y - n.h/2 && y <= n.y + n.h/2;
+            }) || null;
         }
         function handleMouseMove(e) { if (draggedNode) { const r = canvas.getBoundingClientRect(); draggedNode.x = e.clientX - r.left; draggedNode.y = e.clientY - r.top; } }
         function handleMouseUp() { draggedNode = null; }
