@@ -1,0 +1,190 @@
+{
+  "types": [
+    {
+      "id": "type-1767823135937",
+      "name": "Batterie",
+      "attributes": [
+        {
+          "name": "ID",
+          "type": "text",
+          "targetTypeId": null
+        },
+        {
+          "name": "Typ",
+          "type": "text",
+          "targetTypeId": null
+        },
+        {
+          "name": "Hersteller",
+          "type": "link",
+          "targetTypeId": "type-1767823154343"
+        },
+        {
+          "name": "Kapazität",
+          "type": "int",
+          "targetTypeId": null
+        }
+      ]
+    },
+    {
+      "id": "type-1767823154343",
+      "name": "Lieferant",
+      "attributes": [
+        {
+          "name": "Name",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "id": "type-1767823182296",
+      "name": "Haushaltsgerät",
+      "attributes": [
+        {
+          "name": "Name",
+          "type": "text"
+        },
+        {
+          "name": "Lieferant",
+          "type": "link"
+        }
+      ]
+    },
+    {
+      "id": "t1767826665989",
+      "name": "Auto",
+      "attributes": [
+        {
+          "name": "Name",
+          "type": "text",
+          "targetTypeId": ""
+        },
+        {
+          "name": "Hersteller",
+          "type": "text",
+          "targetTypeId": ""
+        },
+        {
+          "name": "Versicherung",
+          "type": "link",
+          "targetTypeId": "t1767826681380"
+        }
+      ]
+    },
+    {
+      "id": "t1767826681380",
+      "name": "Versicherung",
+      "attributes": [
+        {
+          "name": "Name",
+          "type": "text",
+          "targetTypeId": ""
+        },
+        {
+          "name": "Policen-Nummer",
+          "type": "text",
+          "targetTypeId": ""
+        },
+        {
+          "name": "Versicherer",
+          "type": "link",
+          "targetTypeId": "t1767826741830"
+        }
+      ]
+    },
+    {
+      "id": "t1767826741830",
+      "name": "Versicherer",
+      "attributes": [
+        {
+          "name": "Name",
+          "type": "text",
+          "targetTypeId": ""
+        }
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "id": "ent-1767823198587z5omv",
+      "typeId": "type-1767823135937",
+      "values": {
+        "ID": "A-1",
+        "Typ": "AA",
+        "Hersteller": "ent-1767823740449or6tg",
+        "Kapazität": "400"
+      },
+      "createdAt": "2026-01-07T21:59:58.587Z"
+    },
+    {
+      "id": "ent-1767823215624nolpm",
+      "typeId": "type-1767823182296",
+      "values": {
+        "Name": "Waschmaschine",
+        "Lieferant": ""
+      },
+      "createdAt": "2026-01-07T22:00:15.624Z"
+    },
+    {
+      "id": "ent-1767823740449or6tg",
+      "typeId": "type-1767823154343",
+      "values": {
+        "Name": "Ansmann"
+      },
+      "createdAt": "2026-01-07T22:09:00.449Z"
+    },
+    {
+      "id": "ent-1767824285735",
+      "typeId": "type-1767823135937",
+      "values": {
+        "ID": "A-2",
+        "Typ": "AAA",
+        "Hersteller": "ent-1767823740449or6tg",
+        "Kapazität": "500"
+      }
+    },
+    {
+      "id": "e1767826778201",
+      "typeId": "t1767826741830",
+      "values": {
+        "Name": "DEVK"
+      }
+    },
+    {
+      "id": "e1767826796604",
+      "typeId": "t1767826681380",
+      "values": {
+        "Name": "Auto-Haftpflicht",
+        "Policen-Nummer": "345345345",
+        "Versicherer": "e1767826778201"
+      }
+    },
+    {
+      "id": "e1767826807052",
+      "typeId": "t1767826665989",
+      "values": {
+        "Hersteller": "Honda",
+        "Name": "Civic",
+        "Versicherung": "e1767826796604"
+      }
+    },
+    {
+      "id": "e1767826920586",
+      "typeId": "t1767826681380",
+      "values": {
+        "Name": "WoMo-Versicherung",
+        "Policen-Nummer": "456456456546",
+        "Versicherer": "e1767826778201"
+      }
+    },
+    {
+      "id": "e1767826952814",
+      "typeId": "t1767826665989",
+      "values": {
+        "Hersteller": "N&B",
+        "Name": "WoMo",
+        "Versicherung": "e1767826920586"
+      }
+    }
+  ]
+}
