@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entity Manager - Persistent Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f8fafc; color: #1e293b; scroll-behavior: smooth; overflow-x: hidden; }
+        .card { background: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); transition: all 0.3s ease; }
+        .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; }
+        .btn-primary { background-color: #3b82f6; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; transition: background 0.2s; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-primary:hover { background-color: #2563eb; }
+        .btn-ghost { color: #64748b; border: 1px solid #cbd5e1; padding: 0.5rem 1rem; border-radius: 0.5rem; }
+        .input-field { width: 100%; border: 1px solid #cbd5e1; padding: 0.5rem; border-radius: 0.375rem; margin-top: 0.25rem; }
+        
+        #configModal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .modal-content { background: white; width: 95%; max-width: 900px; max-height: 90vh; overflow-y: auto; border-radius: 1rem; padding: 2rem; position: relative; }
+
+        .table-container { overflow-x: auto; border-radius: 0.75rem; border: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th { background-color: #f1f5f9; text-align: left; padding: 0.75rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #64748b; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 0.75rem; border-bottom: 1px solid #f1f5f9; font-size: 0.875rem; vertical-align: middle; }
+
+        .inline-edit-input { width: 100%; padding: 4px; border: 1px solid #3b82f6; border-radius: 4px; outline: none; background: white; }
+        .icon-btn { padding: 0.4rem; border-radius: 0.375rem; transition: background 0.2s; display: inline-flex; align-items: center; justify-content: center; }
+        .icon-btn-edit { color: #3b82f6; }
+        .icon-btn-delete { color: #ef4444; }
+
+        #mindmapContainer { position: relative; width: 100%; height: 600px; background: #f1f5f9; border-radius: 0.75rem; border: 1px solid #e2e8f0; overflow: hidden; }
+        
+        @keyframes highlight {
+            0% { background-color: #dbeafe; transform: scale(1.02); }
+            100% { background-color: white; transform: scale(1); }
+        }
+        .highlight-target { animation: highlight 2s ease-out; border: 2px solid #3b82f6 !important; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-900">Entity Manager <span class="text-blue-500 text-lg">v11.0</span></h1>
+                <p class="text-slate-500">Persistent mit Node.js & JSON-DB.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="toggleConfigModal(true)" class="btn-ghost flex items-center gap-2 hover:bg-slate-50">
+                    Konfiguration
+                </button>
+                <div id="saveIndicator" class="text-[10px] font-bold uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded">Synchronisiert</div>
+            </div>
+        </header>
+
+        <div class="flex border-b border-slate-200 mb-6 overflow-x-auto whitespace-nowrap">
+            <button onclick="switchTab('entities')" id="tab-entities" class="px-6 py-2 font-medium tab-active">Karten</button>
+            <button onclick="switchTab('lists')" id="tab-lists" class="px-6 py-2 font-medium">Tabelle</button>
+            <button onclick="switchTab('mindmap')" id="tab-mindmap" class="px-6 py-2 font-medium">Graph (Karten)</button>
+        </div>
+
+        <section id="section-entities" class="block">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="card p-6 h-fit">
+                    <h2 class="text-xl font-semibold mb-4 text-slate-800">Datensatz bearbeiten</h2>
+                    <input type="hidden" id="editEntityId">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-sm font-medium text-slate-600">Typ</label>
+                            <select id="entityTypeSelect" class="input-field" onchange="renderEntityFormFields()"></select>
+                        </div>
+                        <div id="entityFormFields" class="space-y-4"></div>
+                        <div class="flex gap-2">
+                            <button id="saveEntityBtn" onclick="saveEntity()" class="btn-primary flex-1 justify-center hidden">Speichern</button>
+                            <button id="cancelEntityBtn" onclick="resetEntityForm()" class="btn-ghost hidden">Abbrechen</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-2">
+                    <div id="entityDisplay" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-lists" class="hidden">
+            <div class="card p-6">
+                <select id="listTypeSelect" class="input-field mb-4 w-64" onchange="renderListView()"></select>
+                <div id="listTableContainer" class="table-container"></div>
+            </div>
+        </section>
+
+        <section id="section-mindmap" class="hidden">
+            <div class="card p-6">
+                <div id="mindmapContainer"><canvas id="mindmapCanvas"></canvas></div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal für Typen -->
+    <div id="configModal">
+        <div class="modal-content">
+            <button onclick="toggleConfigModal(false)" class="absolute top-4 right-4 text-2xl">&times;</button>
+            <h2 class="text-2xl font-bold mb-6">Typen & Felder</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-slate-50 p-4 rounded-lg">
+                    <input type="hidden" id="editTypeId">
+                    <input type="text" id="typeName" class="input-field mb-4" placeholder="Typen-Name">
+                    <div id="attributeList" class="space-y-2 mb-4"></div>
+                    <button onclick="addAttributeRow()" class="text-sm text-blue-600 font-bold mb-4">+ Feld hinzufügen</button>
+                    <button onclick="saveType()" class="btn-primary w-full justify-center">Typ Speichern</button>
+                </div>
+                <div id="typeDisplay" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let appData = { types: [], entities: [] };
+        let currentTab = 'entities';
+        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+        // --- API Integration ---
+        async function loadData() {
+            try {
+                const res = await fetch('/api/data');
+                appData = await res.json();
+                refreshAllViews();
+            } catch (e) { console.error("Load error", e); }
+        }
+
+        async function syncData() {
+            const indicator = document.getElementById('saveIndicator');
+            indicator.innerText = "Speichere...";
+            try {
+                await fetch('/api/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(appData)
+                });
+                indicator.innerText = "Synchronisiert";
+            } catch (e) { indicator.innerText = "Speicherfehler!"; }
+        }
+
+        // --- UI Logic ---
+        function switchTab(tab) {
+            currentTab = tab;
+            ['entities', 'lists', 'mindmap'].forEach(t => {
+                document.getElementById('section-' + t).classList.toggle('hidden', t !== tab);
+                document.getElementById('tab-' + t).classList.toggle('tab-active', t === tab);
+            });
+            if (tab === 'mindmap') initMindmap();
+            else refreshAllViews();
+        }
+
+        function refreshAllViews() {
+            updateTypeSelects();
+            renderTypes();
+            if (currentTab === 'entities') renderEntities();
+            if (currentTab === 'lists') renderListView();
+        }
+
+        function toggleConfigModal(show) {
+            document.getElementById('configModal').style.display = show ? 'flex' : 'none';
+        }
+
+        function updateTypeSelects() {
+            ['entityTypeSelect', 'listTypeSelect'].forEach(id => {
+                const s = document.getElementById(id);
+                const cur = s.value;
+                s.innerHTML = '<option value="">-- Typ wählen --</option>' + 
+                    appData.types.map(t => `<option value="${t.id}" ${cur === t.id ? 'selected' : ''}>${t.name}</option>`).join('');
+            });
+        }
+
+        function renderEntityFormFields(existingValues = null) {
+            const typeId = document.getElementById('entityTypeSelect').value;
+            const container = document.getElementById('entityFormFields');
+            container.innerHTML = '';
+            if (!typeId) { document.getElementById('saveEntityBtn').classList.add('hidden'); return; }
+            
+            const type = appData.types.find(t => t.id === typeId);
+            type.attributes.forEach(attr => {
+                const val = existingValues ? existingValues[attr.name] : '';
+                let input = `<input type="text" class="input-field entity-val" data-attr="${attr.name}" value="${val}">`;
+                if (attr.type === 'link') {
+                    const targets = appData.entities.filter(e => !attr.targetTypeId || e.typeId === attr.targetTypeId);
+                    input = `<select class="input-field entity-val" data-attr="${attr.name}">
+                        <option value="">-- Link --</option>
+                        ${targets.map(t => `<option value="${t.id}" ${val === t.id ? 'selected' : ''}>${getEntityLabel(t.id)}</option>`).join('')}
+                    </select>`;
+                }
+                container.innerHTML += `<div><label class="text-[10px] font-bold text-slate-400 uppercase">${attr.name}</label>${input}</div>`;
+            });
+            document.getElementById('saveEntityBtn').classList.remove('hidden');
+            document.getElementById('cancelEntityBtn').classList.remove('hidden');
+        }
+
+        function getEntityLabel(id) {
+            const ent = appData.entities.find(e => e.id === id);
+            if (!ent) return 'Unbekannt';
+            const type = appData.types.find(t => t.id === ent.typeId);
+            return `${type.name}: ${Object.values(ent.values)[0] || id}`;
+        }
+
+        function saveEntity() {
+            const typeId = document.getElementById('entityTypeSelect').value;
+            const editId = document.getElementById('editEntityId').value;
+            const values = {};
+            document.querySelectorAll('#entityFormFields .entity-val').forEach(i => values[i.dataset.attr] = i.value);
+
+            if (editId) {
+                const idx = appData.entities.findIndex(e => e.id === editId);
+                appData.entities[idx].values = values;
+            } else {
+                appData.entities.push({ id: 'e' + Date.now(), typeId, values });
+            }
+            resetEntityForm();
+            syncData();
+            refreshAllViews();
+        }
+
+        function resetEntityForm() {
+            document.getElementById('editEntityId').value = "";
+            document.getElementById('entityTypeSelect').value = "";
+            document.getElementById('entityTypeSelect').disabled = false;
+            document.getElementById('entityFormFields').innerHTML = "";
+            document.getElementById('saveEntityBtn').classList.add('hidden');
+            document.getElementById('cancelEntityBtn').classList.add('hidden');
+        }
+
+        function renderEntities() {
+            const container = document.getElementById('entityDisplay');
+            container.innerHTML = appData.entities.map(ent => {
+                const type = appData.types.find(t => t.id === ent.typeId);
+                return `
+                <div class="card p-4 border-l-4 border-blue-500">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded">${type.name}</span>
+                        <div class="flex gap-1">
+                            <button onclick="editEntity('${ent.id}')" class="icon-btn icon-btn-edit">✎</button>
+                            <button onclick="deleteEntity('${ent.id}')" class="icon-btn icon-btn-delete">🗑</button>
+                        </div>
+                    </div>
+                    <div class="text-sm space-y-1">
+                        ${type.attributes.map(a => `<div class="flex"><span class="w-24 text-slate-400 font-bold text-[10px] uppercase">${a.name}</span><span>${ent.values[a.name] || '-'}</span></div>`).join('')}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function editEntity(id) {
+            const ent = appData.entities.find(e => e.id === id);
+            document.getElementById('editEntityId').value = ent.id;
+            document.getElementById('entityTypeSelect').value = ent.typeId;
+            document.getElementById('entityTypeSelect').disabled = true;
+            renderEntityFormFields(ent.values);
+        }
+
+        function deleteEntity(id) {
+            if (confirm("Löschen?")) {
+                appData.entities = appData.entities.filter(e => e.id !== id);
+                syncData();
+                refreshAllViews();
+            }
+        }
+
+        // --- Graph Logic (Karten-Rendering) ---
+        let nodes = [], links = [], canvas, ctx, animationId, draggedNode = null;
+        const CARD_WIDTH = 150;
+
+        function initMindmap() {
+            canvas = document.getElementById('mindmapCanvas');
+            ctx = canvas.getContext('2d');
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            
+            canvas.onmousedown = (e) => {
+                const r = canvas.getBoundingClientRect();
+                const x = e.clientX - r.left, y = e.clientY - r.top;
+                draggedNode = nodes.find(n => x >= n.x - n.w/2 && x <= n.x + n.w/2 && y >= n.y - n.h/2 && y <= n.y + n.h/2);
+            };
+            window.onmousemove = (e) => {
+                if (draggedNode) {
+                    const r = canvas.getBoundingClientRect();
+                    draggedNode.x = e.clientX - r.left;
+                    draggedNode.y = e.clientY - r.top;
+                }
+            };
+            window.onmouseup = () => draggedNode = null;
+
+            prepareGraphData();
+            animate();
+        }
+
+        function prepareGraphData() {
+            nodes = appData.entities.map(ent => {
+                const type = appData.types.find(t => t.id === ent.typeId);
+                const h = 40 + (type.attributes.length * 12);
+                return {
+                    id: ent.id,
+                    x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+                    vx: 0, vy: 0, w: CARD_WIDTH, h: h,
+                    type: type.name,
+                    label: Object.values(ent.values)[0] || ent.id,
+                    attrs: type.attributes.map(a => ({ n: a.name, v: ent.values[a.name] })),
+                    color: colors[appData.types.indexOf(type) % colors.length]
+                };
+            });
+            links = [];
+            appData.entities.forEach(ent => {
+                const type = appData.types.find(t => t.id === ent.typeId);
+                type.attributes.forEach(a => {
+                    if (a.type === 'link' && ent.values[a.name]) links.push({ s: ent.id, t: ent.values[a.name] });
+                });
+            });
+        }
+
+        function animate() {
+            updatePhysics();
+            draw();
+            animationId = requestAnimationFrame(animate);
+        }
+
+        function updatePhysics() {
+            nodes.forEach(n => {
+                if (n === draggedNode) return;
+                n.vx += (canvas.width/2 - n.x) * 0.001;
+                n.vy += (canvas.height/2 - n.y) * 0.001;
+                n.x += n.vx; n.y += n.vy; n.vx *= 0.9; n.vy *= 0.9;
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            links.forEach(l => {
+                const s = nodes.find(n => n.id === l.s), t = nodes.find(n => n.id === l.t);
+                if (!s || !t) return;
+                ctx.beginPath(); ctx.strokeStyle = '#cbd5e1'; ctx.moveTo(s.x, s.y); ctx.lineTo(t.x, t.y); ctx.stroke();
+            });
+            nodes.forEach(n => {
+                const x = n.x - n.w/2, y = n.y - n.h/2;
+                ctx.fillStyle = 'white'; ctx.shadowBlur = 5; ctx.shadowColor = 'rgba(0,0,0,0.1)';
+                ctx.fillRect(x, y, n.w, n.h); ctx.shadowBlur = 0;
+                ctx.fillStyle = n.color; ctx.fillRect(x, y, n.w, 3);
+                ctx.fillStyle = '#1e293b'; ctx.font = 'bold 10px sans-serif'; ctx.fillText(n.label, x + 5, y + 15);
+                ctx.font = '8px sans-serif'; ctx.fillStyle = '#94a3b8';
+                n.attrs.forEach((a, i) => ctx.fillText(`${a.n}: ${a.v || '-'}`, x + 5, y + 30 + (i * 12)));
+            });
+        }
+
+        // --- Typen Management ---
+        function addAttributeRow(name = '', type = 'text') {
+            const container = document.getElementById('attributeList');
+            const div = document.createElement('div');
+            div.className = 'flex gap-2';
+            div.innerHTML = `
+                <input type="text" class="input-field !mt-0 flex-1 attr-name" placeholder="Feld" value="${name}">
+                <select class="input-field !mt-0 w-24 attr-type">
+                    <option value="text" ${type==='text'?'selected':''}>Text</option>
+                    <option value="link" ${type==='link'?'selected':''}>Link</option>
+                </select>
+                <button onclick="this.parentElement.remove()" class="text-red-500">&times;</button>`;
+            container.appendChild(div);
+        }
+
+        function saveType() {
+            const name = document.getElementById('typeName').value;
+            const attrs = Array.from(document.querySelectorAll('#attributeList > div')).map(div => ({
+                name: div.querySelector('.attr-name').value,
+                type: div.querySelector('.attr-type').value
+            }));
+            appData.types.push({ id: 't' + Date.now(), name, attributes: attrs });
+            document.getElementById('typeName').value = '';
+            document.getElementById('attributeList').innerHTML = '';
+            syncData();
+            refreshAllViews();
+        }
+
+        function renderTypes() {
+            const container = document.getElementById('typeDisplay');
+            container.innerHTML = appData.types.map(t => `
+                <div class="bg-white p-2 rounded border border-slate-200 text-sm flex justify-between">
+                    <span>${t.name} (${t.attributes.length} Felder)</span>
+                </div>
+            `).join('');
+        }
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>
