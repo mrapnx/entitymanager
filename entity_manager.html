@@ -3,41 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Entity Manager</title>
+    <title>Dynamic Entity Manager v2.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #f1f5f9; color: #1e293b; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         .scroll-container { overflow-y: auto; height: 100%; padding-bottom: 2rem; }
-        .card { background: white; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: box-shadow 0.2s; border: 1px solid #e2e8f0; }
-        .card:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .card { background: white; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
         .btn { padding: 0.5rem 1rem; border-radius: 0.375rem; font-weight: 500; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
         .btn-primary { background-color: #3b82f6; color: white; }
         .btn-primary:hover { background-color: #2563eb; }
         .btn-ghost { background-color: transparent; color: #64748b; border: 1px solid #cbd5e1; }
         .btn-ghost:hover { background-color: #f8fafc; color: #334155; }
+        .btn-filter { border-radius: 9999px; padding: 0.25rem 0.75rem; font-size: 0.75rem; border: 1px solid transparent; transition: all 0.2s; }
+        .btn-filter.active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
+        .btn-filter.inactive { background-color: white; color: #64748b; border-color: #e2e8f0; }
+        
         .input { width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.375rem; font-size: 0.875rem; }
-        .input:focus { outline: none; border-color: #3b82f6; ring: 2px; }
         .tab-btn { padding: 0.75rem 1.5rem; border-bottom: 2px solid transparent; color: #64748b; font-weight: 500; }
         .tab-btn.active { border-color: #3b82f6; color: #3b82f6; }
         
-        /* Modal */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
         .modal-content { background: white; width: 90%; max-width: 900px; max-height: 90vh; border-radius: 0.75rem; padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; }
 
-        /* Table */
-        .data-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-        .data-table th { text-align: left; padding: 0.75rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600; }
-        .data-table td { padding: 0.75rem; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
-        .data-table tr:hover { background: #fdfdfd; }
+        .data-table th { cursor: pointer; user-select: none; }
+        .data-table th:hover { background-color: #e2e8f0; }
         .inline-input { width: 100%; padding: 0.25rem; border: 1px solid transparent; background: transparent; border-radius: 0.25rem; }
-        .inline-input:focus { border-color: #3b82f6; background: white; }
-        .inline-input:hover { border-color: #e2e8f0; }
+        .inline-input:focus { border-color: #3b82f6; background: white; outline: none; }
 
-        /* Graph */
-        #graphCanvas { width: 100%; height: 100%; cursor: grab; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; }
+        #graphCanvas { width: 100%; height: 100%; cursor: grab; background-color: #f8fafc; }
         #graphCanvas:active { cursor: grabbing; }
-
-        /* Animations */
+        
         @keyframes highlight { 0% { background: #dbeafe; transform: scale(1.02); } 100% { background: white; transform: scale(1); } }
         .highlight-target { animation: highlight 1.5s ease-out; border: 1px solid #3b82f6 !important; }
     </style>
@@ -48,32 +44,35 @@
     <header class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm z-10">
         <div>
             <h1 class="text-xl font-bold text-slate-800">Dynamic Entity Manager</h1>
-            <div id="statusIndicator" class="text-xs text-slate-400 font-mono mt-1">Bereit</div>
+            <div class="flex items-center gap-2 mt-1">
+                <span id="storageBadge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-500">...</span>
+                <span id="statusIndicator" class="text-xs text-slate-400 font-mono">Init...</span>
+            </div>
         </div>
-        <div class="flex gap-2">
-            <button onclick="toggleConfigModal(true)" class="btn btn-ghost text-sm">
-                ⚙️ Konfiguration
-            </button>
-        </div>
+        <button onclick="toggleConfigModal(true)" class="btn btn-ghost text-sm">⚙️ Konfiguration</button>
     </header>
 
     <!-- Navigation -->
-    <nav class="bg-white border-b border-slate-200 px-6 flex gap-4 overflow-x-auto">
+    <nav class="bg-white border-b border-slate-200 px-6 flex gap-4 overflow-x-auto items-center">
         <button onclick="switchTab('cards')" id="tab-cards" class="tab-btn active">Karten</button>
         <button onclick="switchTab('table')" id="tab-table" class="tab-btn">Tabelle</button>
         <button onclick="switchTab('graph')" id="tab-graph" class="tab-btn">Mindmap</button>
+        <div class="h-6 w-px bg-slate-200 mx-2"></div>
+        <div id="filterContainer" class="flex gap-2 items-center overflow-x-auto py-2">
+            <!-- Filter buttons injected here -->
+        </div>
     </nav>
 
-    <!-- Main Content Area -->
+    <!-- Main Content -->
     <main class="flex-1 overflow-hidden relative">
         
-        <!-- VIEW 1: CARDS -->
+        <!-- CARDS VIEW -->
         <section id="view-cards" class="h-full scroll-container p-6">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Create Form -->
+                <!-- Form -->
                 <div class="lg:col-span-1">
                     <div class="card p-5 sticky top-0">
-                        <h2 class="text-lg font-bold mb-4 text-slate-700">Entität erstellen / bearbeiten</h2>
+                        <h2 class="text-lg font-bold mb-4 text-slate-700">Editor</h2>
                         <input type="hidden" id="editEntityId">
                         <div class="mb-4">
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Typ</label>
@@ -88,44 +87,36 @@
                 </div>
                 <!-- List -->
                 <div class="lg:col-span-2 space-y-4">
-                    <div class="flex justify-between items-center mb-2">
-                        <h2 class="text-lg font-bold text-slate-700">Übersicht</h2>
-                        <input type="text" id="cardSearch" placeholder="Suchen..." class="input w-64" oninput="renderCards()">
-                    </div>
                     <div id="cardsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 </div>
             </div>
         </section>
 
-        <!-- VIEW 2: TABLE -->
+        <!-- TABLE VIEW -->
         <section id="view-table" class="h-full scroll-container p-6 hidden">
             <div class="card p-0 overflow-hidden flex flex-col h-full">
-                <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-                    <div class="flex items-center gap-3">
-                        <span class="text-sm font-bold text-slate-600">Typ wählen:</span>
-                        <select id="tableTypeSelect" class="input w-64 bg-white" onchange="renderTable()"></select>
-                    </div>
+                <div class="p-4 border-b border-slate-200 bg-slate-50">
+                    <select id="tableTypeSelect" class="input w-64 bg-white" onchange="renderTable()"></select>
                 </div>
                 <div class="overflow-auto flex-1 p-4">
                     <div id="tableContainer"></div>
                 </div>
                 <div id="quickAddRow" class="p-4 border-t border-slate-200 bg-slate-50 hidden">
-                    <div class="text-xs font-bold text-slate-400 uppercase mb-2">Quick Add</div>
+                    <div class="text-xs font-bold text-slate-400 uppercase mb-2">Schnell-Hinzufügen</div>
                     <div id="quickAddInputs" class="flex gap-2 mb-2 overflow-x-auto pb-2"></div>
                     <button onclick="quickAddEntity()" class="btn btn-primary text-xs py-1">Hinzufügen</button>
                 </div>
             </div>
         </section>
 
-        <!-- VIEW 3: GRAPH -->
+        <!-- GRAPH VIEW -->
         <section id="view-graph" class="h-full w-full hidden relative p-0">
             <canvas id="graphCanvas"></canvas>
-            <div class="absolute top-4 left-4 bg-white/90 p-2 rounded border border-slate-200 shadow-sm text-xs text-slate-500">
-                <p>Drag: Verschieben</p>
-                <p>Links: Eingang, Rechts: Ausgang</p>
+            <div class="absolute top-4 left-4 bg-white/90 p-2 rounded border border-slate-200 shadow-sm text-xs text-slate-500 pointer-events-none z-10">
+                <p>Drag: Anordnen</p>
+                <p>Auto-Layout: Aktiv</p>
             </div>
         </section>
-
     </main>
 
     <!-- CONFIG MODAL -->
@@ -136,162 +127,301 @@
                 <button onclick="toggleConfigModal(false)" class="text-2xl text-slate-400 hover:text-slate-600">&times;</button>
             </div>
             
+            <div class="mb-6 p-4 bg-blue-50 rounded border border-blue-100 flex items-center justify-between">
+                <div>
+                    <h4 class="font-bold text-sm text-blue-800">Speicherort</h4>
+                    <p class="text-xs text-blue-600">Automatische Erkennung beim Start</p>
+                </div>
+                <select id="storageModeSelect" class="input w-40" onchange="changeStorageMode()">
+                    <option value="local">Lokal (Browser)</option>
+                    <option value="backend">Server (Datei)</option>
+                </select>
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
-                <!-- Type Editor -->
                 <div class="bg-slate-50 p-4 rounded border border-slate-200 h-full flex flex-col">
                     <h3 class="font-bold mb-3 text-slate-700">Typ definieren</h3>
                     <input type="hidden" id="configTypeId">
-                    <input type="text" id="configTypeName" class="input mb-3" placeholder="Name des Typs (z.B. Projekt)">
-                    
-                    <div class="flex-1 overflow-y-auto mb-3 border border-slate-200 bg-white rounded p-2" id="attrList">
-                        <!-- Attribute Rows go here -->
-                    </div>
-                    
-                    <button onclick="addAttrRow()" class="text-blue-600 text-sm font-medium hover:underline mb-4">+ Attribut hinzufügen</button>
-                    
+                    <input type="text" id="configTypeName" class="input mb-3" placeholder="Typ Name">
+                    <div class="flex-1 overflow-y-auto mb-3 bg-white rounded p-2 border border-slate-200" id="attrList"></div>
+                    <button onclick="addAttrRow()" class="text-blue-600 text-sm font-medium hover:underline mb-4">+ Attribut</button>
                     <div class="flex gap-2">
                         <button onclick="saveType()" class="btn btn-primary flex-1 justify-center">Typ Speichern</button>
                         <button onclick="resetConfigForm()" class="btn btn-ghost" id="cancelConfigBtn" style="display:none;">Abbrechen</button>
                     </div>
                 </div>
-
-                <!-- Existing Types List -->
                 <div class="h-full flex flex-col">
                     <h3 class="font-bold mb-3 text-slate-700">Vorhandene Typen</h3>
                     <div id="typesList" class="flex-1 overflow-y-auto space-y-2"></div>
-                    
-                    <div class="mt-4 pt-4 border-t border-slate-200">
-                        <h4 class="text-xs font-bold uppercase text-slate-400 mb-2">Datenverwaltung</h4>
-                        <div class="flex gap-2">
-                            <button onclick="exportData()" class="btn btn-ghost text-xs py-1">JSON Export</button>
-                            <label class="btn btn-ghost text-xs py-1 cursor-pointer">
-                                JSON Import
-                                <input type="file" onchange="importData(event)" class="hidden" accept=".json">
-                            </label>
-                        </div>
+                    <div class="mt-4 pt-4 border-t border-slate-200 flex gap-2">
+                        <button onclick="exportData()" class="btn btn-ghost text-xs">JSON Export</button>
+                        <label class="btn btn-ghost text-xs cursor-pointer">Import <input type="file" onchange="importData(event)" class="hidden"></label>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- LOGIC -->
     <script>
         // --- State ---
         let appData = { types: [], entities: [] };
         let currentTab = 'cards';
-        
-        // Colors for Graph/Cards
-        const TYPE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+        // storageMode initial auf 'local' - wird durch detectStorageAndInit() überschrieben
+        let storageMode = 'local';
+        let activeFilters = new Set();
+        let tableSort = { colId: null, dir: 'asc' };
 
-        // --- API / Persistence ---
-        async function loadData() {
-            updateStatus("Lade Daten...");
-            try {
-                const res = await fetch('/api/data');
-                appData = await res.json();
+        const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+        // --- GLOBAL FUNCTIONS FOR ONCLICK EVENTS ---
+        window.deleteEntity = function(id) {
+            if(confirm("Diesen Datensatz wirklich löschen?")) {
+                appData.entities = appData.entities.filter(e => e.id !== id);
+                saveData();
                 refreshAll();
-                updateStatus("Synchronisiert");
+            }
+        };
+
+        window.deleteType = function(id) {
+            if(confirm("Typ und alle zugehörigen Daten löschen?")) {
+                appData.types = appData.types.filter(t => t.id !== id);
+                appData.entities = appData.entities.filter(e => e.typeId !== id);
+                saveData();
+                refreshAll();
+            }
+        };
+
+        window.toggleFilter = function(typeId) {
+            if (activeFilters.has(typeId)) {
+                if (activeFilters.size > 1) activeFilters.delete(typeId);
+            } else {
+                activeFilters.add(typeId);
+            }
+            refreshAll();
+        };
+
+        window.editEntity = function(id) {
+            switchTab('cards');
+            const e = appData.entities.find(x => x.id === id);
+            if (!e) return;
+            document.getElementById('editEntityId').value = e.id;
+            document.getElementById('entityTypeSelect').value = e.typeId;
+            document.getElementById('entityTypeSelect').disabled = true;
+            renderEntityFormFields(e.values);
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+        };
+
+        window.editType = function(id) {
+            const t = getType(id);
+            if (!t) return;
+            document.getElementById('configTypeId').value = t.id;
+            document.getElementById('configTypeName').value = t.name;
+            document.getElementById('attrList').innerHTML = '';
+            t.attributes.forEach(a => addAttrRow(a.id, a.name, a.type, a.targetTypeId));
+            document.getElementById('cancelConfigBtn').style.display = 'inline-block';
+        };
+
+        // --- Init ---
+        document.addEventListener('DOMContentLoaded', () => {
+            detectStorageAndInit();
+        });
+
+        // Automatische Erkennung des Speichers
+        async function detectStorageAndInit() {
+            updateStatus("Prüfe Verbindung...", false);
+            let detectedMode = 'local';
+            
+            try {
+                // Timeout Controller (1 Sekunde)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 1000);
+                
+                // Wir nutzen fetch auf /api/data um zu sehen, ob der Server da ist
+                // HEAD wäre effizienter, aber GET ist robuster um Antwortformat zu prüfen
+                const res = await fetch('/api/data', { 
+                    method: 'GET', 
+                    signal: controller.signal 
+                });
+                clearTimeout(timeoutId);
+                
+                if (res.ok) {
+                    console.log("Backend erkannt.");
+                    detectedMode = 'backend';
+                }
+            } catch (e) {
+                console.log("Backend nicht erreichbar, nutze lokalen Speicher.");
+            }
+
+            // Setze Modus
+            storageMode = detectedMode;
+            
+            // UI Sync
+            const sel = document.getElementById('storageModeSelect');
+            if(sel) sel.value = storageMode;
+            
+            localStorage.setItem('dem_storage_mode', storageMode);
+            updateStorageBadge();
+            
+            // Daten laden
+            loadData();
+        }
+
+        function changeStorageMode() {
+            storageMode = document.getElementById('storageModeSelect').value;
+            localStorage.setItem('dem_storage_mode', storageMode);
+            updateStorageBadge();
+            loadData();
+        }
+
+        function updateStorageBadge() {
+            const el = document.getElementById('storageBadge');
+            el.textContent = storageMode === 'local' ? 'LOKAL' : 'SERVER';
+            el.className = storageMode === 'local' 
+                ? "px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-100 text-orange-600"
+                : "px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-100 text-blue-600";
+        }
+
+        // --- Persistence ---
+        async function loadData() {
+            updateStatus("Lade...");
+            try {
+                if (storageMode === 'backend') {
+                    const res = await fetch('/api/data');
+                    appData = await res.json();
+                } else {
+                    const local = localStorage.getItem('dem_data');
+                    appData = local ? JSON.parse(local) : { types: [], entities: [] };
+                }
+                
+                if(activeFilters.size === 0) appData.types.forEach(t => activeFilters.add(t.id));
+                
+                refreshAll();
+                updateStatus("Bereit");
             } catch (e) {
                 console.error(e);
-                updateStatus("Fehler beim Laden", true);
+                updateStatus("Fehler!", true);
             }
         }
 
         async function saveData() {
             updateStatus("Speichere...");
             try {
-                await fetch('/api/save', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(appData)
-                });
-                updateStatus("Synchronisiert");
+                if (storageMode === 'backend') {
+                    await fetch('/api/save', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(appData)
+                    });
+                } else {
+                    localStorage.setItem('dem_data', JSON.stringify(appData));
+                }
+                updateStatus("Gespeichert");
             } catch (e) {
                 updateStatus("Fehler beim Speichern", true);
             }
         }
 
-        function updateStatus(msg, isError = false) {
+        function updateStatus(msg, err=false) {
             const el = document.getElementById('statusIndicator');
             el.textContent = msg;
-            el.className = isError ? "text-xs text-red-500 font-bold mt-1" : "text-xs text-green-600 font-mono mt-1";
+            el.className = `text-xs font-mono ${err ? 'text-red-500 font-bold' : 'text-green-600'}`;
         }
 
         // --- Core Helpers ---
-        function getBacklinks(entityId) {
-            return appData.entities.filter(e => {
-                const t = getType(e.typeId);
-                return t.attributes.some(a => a.type === 'link' && e.values[a.name] === entityId);
-            });
-        }
-
         function getType(id) { return appData.types.find(t => t.id === id); }
+        function getAttr(type, attrId) { return type.attributes.find(a => a.id === attrId); }
         
-        function getEntityLabel(entityId, withType = false) {
-            const ent = appData.entities.find(e => e.id === entityId);
+        function getEntityLabel(entId, withType = false) {
+            const ent = appData.entities.find(e => e.id === entId);
             if (!ent) return "Unbekannt";
             const type = getType(ent.typeId);
-            const name = ent.values[Object.keys(ent.values)[0]] || ent.id; // First value as label
+            if (!type) return "Gelöschter Typ";
+            const firstAttrId = type.attributes[0]?.id;
+            const name = firstAttrId ? (ent.values[firstAttrId] || ent.id) : ent.id;
             return withType ? `${type.name}: ${name}` : name;
         }
 
+        function getBacklinks(entId) {
+            return appData.entities.filter(e => {
+                const t = getType(e.typeId);
+                return t.attributes.some(a => a.type === 'link' && e.values[a.id] === entId);
+            });
+        }
+
         function refreshAll() {
+            renderFilters();
+            renderConfigList();
             updateSelects();
-            renderTypesList();
-            
             if (currentTab === 'cards') renderCards();
             if (currentTab === 'table') renderTable();
-            if (currentTab === 'graph') initGraph(); // Re-init graph logic
+            if (currentTab === 'graph') initGraph();
         }
 
-        // --- Config Modal Logic ---
-        function toggleConfigModal(show) {
-            document.getElementById('configModal').style.display = show ? 'flex' : 'none';
-            if (show) { renderTypesList(); if(document.getElementById('attrList').children.length === 0) addAttrRow(); }
-            else refreshAll();
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('section').forEach(el => el.classList.add('hidden'));
+            document.getElementById('view-'+tab).classList.remove('hidden');
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-'+tab).classList.add('active');
+            
+            const filterContainer = document.getElementById('filterContainer');
+            filterContainer.style.visibility = (tab === 'cards' || tab === 'graph') ? 'visible' : 'hidden';
+
+            refreshAll();
         }
 
-        function addAttrRow(name='', type='text', target='') {
+        // --- Filters ---
+        function renderFilters() {
+            const container = document.getElementById('filterContainer');
+            container.innerHTML = appData.types.map(t => {
+                const isActive = activeFilters.has(t.id);
+                return `<button onclick="toggleFilter('${t.id}')" class="btn-filter ${isActive ? 'active' : 'inactive'} whitespace-nowrap">${t.name}</button>`;
+            }).join('');
+        }
+
+        // --- Config ---
+        function addAttrRow(id=null, name='', type='text', target='') {
+            const list = document.getElementById('attrList');
+            const rowId = id || 'attr-'+Date.now()+Math.random().toString(36).substr(2,5);
             const div = document.createElement('div');
             div.className = "attr-row flex gap-2 items-center mb-2 bg-slate-50 p-1 rounded";
+            div.dataset.id = rowId;
             div.innerHTML = `
-                <div class="flex flex-col">
-                    <button onclick="moveAttr(this, -1)" class="text-xs text-slate-400 hover:text-blue-500">▲</button>
-                    <button onclick="moveAttr(this, 1)" class="text-xs text-slate-400 hover:text-blue-500">▼</button>
+                <div class="flex flex-col text-xs text-slate-400">
+                    <button onclick="moveAttr(this, -1)">▲</button><button onclick="moveAttr(this, 1)">▼</button>
                 </div>
-                <input type="text" class="input py-1 text-sm attr-name" placeholder="Name" value="${name}">
-                <select class="input py-1 text-sm w-24 attr-type" onchange="toggleTargetSelect(this)">
+                <input type="text" class="input py-1 text-sm attr-name" value="${name}" placeholder="Name">
+                <select class="input py-1 text-sm w-24 attr-type" onchange="toggleTarget(this)">
                     <option value="text" ${type==='text'?'selected':''}>Text</option>
-                    <option value="int" ${type==='int'?'selected':''}>Ganzzahl</option>
+                    <option value="int" ${type==='int'?'selected':''}>Zahl</option>
                     <option value="decimal" ${type==='decimal'?'selected':''}>Dezimal</option>
                     <option value="link" ${type==='link'?'selected':''}>Link</option>
                 </select>
                 <select class="input py-1 text-sm w-32 attr-target ${type==='link'?'':'hidden'}">
-                    <option value="">Alle Typen</option>
+                    <option value="">Alle</option>
                     ${appData.types.map(t => `<option value="${t.id}" ${target===t.id?'selected':''}>${t.name}</option>`).join('')}
                 </select>
-                <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-600 px-2">×</button>
+                <button onclick="this.parentElement.remove()" class="text-red-400 px-2">×</button>
             `;
-            document.getElementById('attrList').appendChild(div);
+            list.appendChild(div);
         }
 
-        function toggleTargetSelect(el) {
-            const targetSelect = el.parentElement.querySelector('.attr-target');
-            targetSelect.classList.toggle('hidden', el.value !== 'link');
-        }
+        window.toggleTarget = function(el) {
+            el.parentElement.querySelector('.attr-target').classList.toggle('hidden', el.value !== 'link');
+        };
+        
+        window.moveAttr = function(btn, dir) {
+            const row = btn.closest('.attr-row');
+            if (dir===-1 && row.previousElementSibling) row.parentElement.insertBefore(row, row.previousElementSibling);
+            if (dir===1 && row.nextElementSibling) row.parentElement.insertBefore(row.nextElementSibling, row);
+        };
 
-        function moveAttr(btn, dir) {
-            const row = btn.parentElement.parentElement;
-            const parent = row.parentElement;
-            if (dir === -1 && row.previousElementSibling) parent.insertBefore(row, row.previousElementSibling);
-            if (dir === 1 && row.nextElementSibling) parent.insertBefore(row.nextElementSibling, row);
-        }
-
-        function saveType() {
+        window.saveType = function() {
             const name = document.getElementById('configTypeName').value.trim();
-            if (!name) return alert("Name fehlt");
+            if (!name) return;
+            
             const attrs = Array.from(document.querySelectorAll('.attr-row')).map(row => ({
+                id: row.dataset.id,
                 name: row.querySelector('.attr-name').value,
                 type: row.querySelector('.attr-type').value,
                 targetTypeId: row.querySelector('.attr-target').value
@@ -299,562 +429,579 @@
 
             const id = document.getElementById('configTypeId').value;
             if (id) {
-                const idx = appData.types.findIndex(t => t.id === id);
-                appData.types[idx] = { id, name, attributes: attrs };
+                const t = getType(id);
+                t.name = name;
+                t.attributes = attrs;
             } else {
-                appData.types.push({ id: 't'+Date.now(), name, attributes: attrs });
+                const newId = 'type-'+Date.now();
+                appData.types.push({ id: newId, name, attributes: attrs });
+                activeFilters.add(newId);
             }
             saveData();
             resetConfigForm();
-            renderTypesList();
-        }
+            refreshAll();
+        };
 
-        function renderTypesList() {
-            const div = document.getElementById('typesList');
-            div.innerHTML = appData.types.map(t => `
+        function renderConfigList() {
+            document.getElementById('typesList').innerHTML = appData.types.map(t => `
                 <div class="flex justify-between items-center bg-white border p-2 rounded text-sm">
-                    <span class="font-bold">${t.name} <span class="text-xs text-slate-400 font-normal">(${t.attributes.length} Attr.)</span></span>
+                    <strong>${t.name}</strong>
                     <div>
                         <button onclick="editType('${t.id}')" class="text-blue-500 mr-2">Edit</button>
-                        <button onclick="deleteType('${t.id}')" class="text-red-500">Löschen</button>
+                        <button onclick="deleteType('${t.id}')" class="text-red-500">Lösch</button>
                     </div>
-                </div>
-            `).join('');
+                </div>`).join('');
         }
 
-        function editType(id) {
-            const t = getType(id);
-            document.getElementById('configTypeId').value = t.id;
-            document.getElementById('configTypeName').value = t.name;
-            document.getElementById('attrList').innerHTML = '';
-            t.attributes.forEach(a => addAttrRow(a.name, a.type, a.targetTypeId));
-            document.getElementById('cancelConfigBtn').style.display = 'inline-block';
-        }
-
-        function resetConfigForm() {
+        window.resetConfigForm = function() {
             document.getElementById('configTypeId').value = '';
             document.getElementById('configTypeName').value = '';
             document.getElementById('attrList').innerHTML = '';
             document.getElementById('cancelConfigBtn').style.display = 'none';
             addAttrRow();
-        }
+        };
 
-        function deleteType(id) {
-            if(confirm("Typ und alle zugehörigen Entitäten löschen?")) {
-                appData.types = appData.types.filter(t => t.id !== id);
-                appData.entities = appData.entities.filter(e => e.typeId !== id);
-                saveData();
-                renderTypesList();
-            }
-        }
-
-        // --- Entity Logic (Forms) ---
+        // --- Entity Form ---
         function updateSelects() {
             const opts = '<option value="">-- Wählen --</option>' + appData.types.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-            
-            // For Form
-            const entSel = document.getElementById('entityTypeSelect');
-            const entVal = entSel.value;
-            entSel.innerHTML = opts;
-            if(appData.types.find(t=>t.id===entVal)) entSel.value = entVal;
-
-            // For Table
-            const tblSel = document.getElementById('tableTypeSelect');
-            const tblVal = tblSel.value;
-            tblSel.innerHTML = opts;
-            if(appData.types.find(t=>t.id===tblVal)) tblSel.value = tblVal;
+            const s1 = document.getElementById('entityTypeSelect');
+            const s2 = document.getElementById('tableTypeSelect');
+            const v1 = s1.value; const v2 = s2.value;
+            s1.innerHTML = opts; s1.value = v1;
+            s2.innerHTML = opts; s2.value = v2;
         }
 
-        function renderEntityFormFields(vals = {}) {
+        window.renderEntityFormFields = function(vals={}) {
             const tid = document.getElementById('entityTypeSelect').value;
             const container = document.getElementById('entityFormFields');
             container.innerHTML = '';
-            
-            const type = getType(tid);
-            if (!type) return;
+            const t = getType(tid);
+            if (!t) return;
 
-            type.attributes.forEach(attr => {
+            t.attributes.forEach(a => {
                 const label = document.createElement('label');
                 label.className = "block text-xs font-bold text-slate-500 uppercase mt-2 mb-1";
-                label.innerText = attr.name;
+                label.innerText = a.name;
                 
                 let input;
-                if (attr.type === 'link') {
+                if (a.type === 'link') {
                     input = document.createElement('select');
                     input.className = "input entity-input";
-                    input.innerHTML = '<option value="">-- Leer --</option>';
-                    const targets = appData.entities.filter(e => !attr.targetTypeId || e.typeId === attr.targetTypeId);
-                    targets.forEach(t => {
+                    input.innerHTML = '<option value="">--</option>';
+                    const targets = appData.entities.filter(e => !a.targetTypeId || e.typeId === a.targetTypeId);
+                    targets.forEach(tgt => {
                         const opt = document.createElement('option');
-                        opt.value = t.id;
-                        opt.innerText = getEntityLabel(t.id, true);
-                        if(vals[attr.name] === t.id) opt.selected = true;
+                        opt.value = tgt.id;
+                        opt.innerText = getEntityLabel(tgt.id, true);
+                        if (vals[a.id] === tgt.id) opt.selected = true;
                         input.appendChild(opt);
                     });
                 } else {
                     input = document.createElement('input');
-                    input.type = (attr.type === 'int' || attr.type === 'decimal') ? 'number' : 'text';
+                    input.type = (a.type==='int'||a.type==='decimal') ? 'number' : 'text';
                     input.className = "input entity-input";
-                    input.value = vals[attr.name] || '';
-                    if (attr.type === 'decimal') input.step = '0.01';
+                    input.value = vals[a.id] || '';
+                    if(a.type==='decimal') input.step = "0.01";
                 }
-                input.dataset.attr = attr.name;
-                input.dataset.type = attr.type;
-                
+                input.dataset.attrId = a.id;
+                input.dataset.type = a.type;
                 container.appendChild(label);
                 container.appendChild(input);
             });
-        }
+        };
 
-        function saveEntity() {
+        window.saveEntity = function() {
             const tid = document.getElementById('entityTypeSelect').value;
-            if(!tid) return alert("Typ wählen");
-            
+            if(!tid) return;
             const values = {};
             document.querySelectorAll('.entity-input').forEach(el => {
                 let v = el.value;
-                if(el.dataset.type === 'int') v = parseInt(v) || 0;
-                else if(el.dataset.type === 'decimal') v = parseFloat(v) || 0.0;
-                values[el.dataset.attr] = v;
+                if(el.dataset.type==='int') v = parseInt(v)||0;
+                else if(el.dataset.type==='decimal') v = parseFloat(v)||0.0;
+                values[el.dataset.attrId] = v;
             });
 
             const id = document.getElementById('editEntityId').value;
-            if(id) {
+            if (id) {
                 const idx = appData.entities.findIndex(e => e.id === id);
                 appData.entities[idx].values = values;
             } else {
-                appData.entities.push({ id: 'e'+Date.now(), typeId: tid, values });
+                appData.entities.push({ id: 'e-'+Date.now(), typeId: tid, values });
             }
             saveData();
             resetEntityForm();
             refreshAll();
-        }
+        };
 
-        function resetEntityForm() {
+        window.resetEntityForm = function() {
             document.getElementById('editEntityId').value = '';
             document.getElementById('entityTypeSelect').disabled = false;
             document.getElementById('entityTypeSelect').value = '';
             document.getElementById('entityFormFields').innerHTML = '';
             document.getElementById('cancelEditBtn').classList.add('hidden');
-        }
+        };
 
-        function editEntity(id) {
-            switchTab('cards');
-            const e = appData.entities.find(x => x.id === id);
-            document.getElementById('editEntityId').value = e.id;
-            document.getElementById('entityTypeSelect').value = e.typeId;
-            document.getElementById('entityTypeSelect').disabled = true;
-            renderEntityFormFields(e.values);
-            document.getElementById('cancelEditBtn').classList.remove('hidden');
-            window.scrollTo(0,0);
-        }
-
-        function deleteEntity(id) {
-            if(confirm("Wirklich löschen?")) {
-                appData.entities = appData.entities.filter(e => e.id !== id);
-                saveData();
-                refreshAll();
-            }
-        }
-
-        // --- Card View ---
+        // --- Cards View ---
         function renderCards() {
             const container = document.getElementById('cardsContainer');
-            const search = document.getElementById('cardSearch').value.toLowerCase();
-            
             container.innerHTML = appData.entities
-                .filter(e => {
-                    const l = getEntityLabel(e.id).toLowerCase();
-                    return l.includes(search);
-                })
+                .filter(e => activeFilters.has(e.typeId))
                 .map(e => {
-                    const type = getType(e.typeId);
-                    const typeIdx = appData.types.findIndex(t => t.id === e.typeId);
-                    const color = TYPE_COLORS[typeIdx % TYPE_COLORS.length];
-                    
+                    const t = getType(e.typeId);
+                    const color = COLORS[appData.types.findIndex(x=>x.id===e.typeId) % COLORS.length];
                     const backlinks = getBacklinks(e.id);
                     
                     return `
                     <div class="card p-4 border-l-4" style="border-left-color: ${color}" id="ent-${e.id}">
-                        <div class="flex justify-between items-start">
+                        <div class="flex justify-between">
                             <div>
-                                <span class="text-[10px] font-bold uppercase text-slate-400">${type.name}</span>
-                                <h3 class="font-bold text-lg mb-2">${getEntityLabel(e.id)}</h3>
+                                <span class="text-[10px] uppercase font-bold text-slate-400">${t.name}</span>
+                                <h3 class="font-bold mb-2">${getEntityLabel(e.id)}</h3>
                             </div>
                             <div class="flex gap-1">
-                                <button onclick="editEntity('${e.id}')" class="text-blue-500 hover:bg-blue-50 p-1 rounded">✏️</button>
-                                <button onclick="deleteEntity('${e.id}')" class="text-red-500 hover:bg-red-50 p-1 rounded">🗑</button>
+                                <button onclick="editEntity('${e.id}')" class="text-blue-500">✎</button>
+                                <button onclick="deleteEntity('${e.id}')" class="text-red-500">🗑</button>
                             </div>
                         </div>
-                        <div class="space-y-1 text-sm mb-3">
-                            ${type.attributes.map(a => {
-                                let val = e.values[a.name];
-                                if(a.type === 'link' && val) {
-                                    val = `<a href="#" onclick="focusEntity('${val}')" class="text-blue-600 hover:underline">🔗 ${getEntityLabel(val)}</a>`;
-                                }
-                                return `<div class="flex"><span class="w-1/3 text-slate-500 text-xs font-semibold">${a.name}:</span><span class="w-2/3 truncate">${val || '-'}</span></div>`;
+                        <div class="text-sm space-y-1">
+                            ${t.attributes.map(a => {
+                                let val = e.values[a.id];
+                                if(a.type==='link' && val) val = `<span class="text-blue-600 cursor-pointer" onclick="focusEntity('${val}')">🔗 ${getEntityLabel(val)}</span>`;
+                                return `<div class="flex"><span class="w-24 text-slate-500 text-xs">${a.name}:</span><span class="truncate flex-1">${val||'-'}</span></div>`;
                             }).join('')}
                         </div>
-                        ${backlinks.length > 0 ? `
-                        <div class="border-t pt-2 mt-2">
-                            <span class="text-[10px] font-bold text-slate-400">VERLINKT IN:</span>
-                            <div class="flex flex-wrap gap-1 mt-1">
-                                ${backlinks.map(b => `<span onclick="focusEntity('${b.id}')" class="cursor-pointer text-[10px] bg-slate-100 px-1 py-0.5 rounded hover:bg-blue-100 border border-slate-200">${getEntityLabel(b.id)}</span>`).join('')}
-                            </div>
+                        ${backlinks.length ? `<div class="mt-2 pt-2 border-t flex flex-wrap gap-1">
+                            <span class="text-[10px] text-slate-400 w-full">VERLINKT IN:</span>
+                            ${backlinks.map(b => `<span class="text-[10px] bg-slate-100 px-1 rounded cursor-pointer" onclick="focusEntity('${b.id}')">${getEntityLabel(b.id)}</span>`).join('')}
                         </div>` : ''}
                     </div>`;
                 }).join('');
         }
 
-        function focusEntity(id) {
+        window.focusEntity = function(id) {
             switchTab('cards');
             setTimeout(() => {
-                const el = document.getElementById('ent-' + id);
+                const el = document.getElementById('ent-'+id);
                 if(el) {
-                    el.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     el.classList.add('highlight-target');
                     setTimeout(() => el.classList.remove('highlight-target'), 1500);
                 }
             }, 100);
-        }
+        };
 
-        // --- Table View ---
-        function renderTable() {
+        // --- Table View (Sorted) ---
+        window.renderTable = function() {
             const tid = document.getElementById('tableTypeSelect').value;
             const container = document.getElementById('tableContainer');
             const quickRow = document.getElementById('quickAddRow');
             
             if (!tid) {
-                container.innerHTML = `<div class="p-10 text-center text-slate-400">Bitte einen Typ auswählen.</div>`;
+                container.innerHTML = `<div class="p-8 text-center text-slate-400">Bitte Typ wählen</div>`;
                 quickRow.classList.add('hidden');
                 return;
             }
             quickRow.classList.remove('hidden');
 
-            const type = getType(tid);
-            const ents = appData.entities.filter(e => e.typeId === tid);
+            const t = getType(tid);
+            let ents = appData.entities.filter(e => e.typeId === tid);
 
-            // Table Header
-            let html = `<table class="data-table"><thead><tr>`;
-            type.attributes.forEach(a => html += `<th>${a.name}</th>`);
-            html += `<th>Backlinks</th><th class="w-10"></th></tr></thead><tbody>`;
+            if (tableSort.colId) {
+                ents.sort((a, b) => {
+                    let va = a.values[tableSort.colId];
+                    let vb = b.values[tableSort.colId];
+                    const attr = getAttr(t, tableSort.colId);
+                    if(attr && attr.type === 'link') {
+                        va = va ? getEntityLabel(va) : '';
+                        vb = vb ? getEntityLabel(vb) : '';
+                    }
+                    if (va == null) va = "";
+                    if (vb == null) vb = "";
+                    if (va < vb) return tableSort.dir === 'asc' ? -1 : 1;
+                    if (va > vb) return tableSort.dir === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            }
 
-            // Rows
+            let html = `<table class="data-table w-full"><thead><tr>`;
+            t.attributes.forEach(a => {
+                const indicator = tableSort.colId === a.id ? (tableSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+                html += `<th onclick="sortTable('${a.id}')">${a.name}${indicator}</th>`;
+            });
+            html += `<th>Backlinks</th><th></th></tr></thead><tbody>`;
+
             ents.forEach(e => {
                 html += `<tr>`;
-                type.attributes.forEach(a => {
-                    let val = e.values[a.name];
+                t.attributes.forEach(a => {
+                    let val = e.values[a.id];
                     let display = val || '';
-                    if (a.type === 'link' && val) display = `🔗 ${getEntityLabel(val)}`;
-                    // Inline Edit Cell
-                    html += `<td onclick="editInline(this, '${e.id}', '${a.name}', '${a.type}', '${a.targetTypeId || ''}')" class="cursor-pointer hover:bg-blue-50">${display || '<span class="text-slate-300 italic">-</span>'}</td>`;
+                    if(a.type === 'link' && val) display = `🔗 ${getEntityLabel(val)}`;
+                    html += `<td onclick="inlineEdit(this, '${e.id}', '${a.id}', '${a.type}', '${a.targetTypeId}')" class="cursor-pointer hover:bg-blue-50">${display}</td>`;
                 });
-                
                 const bl = getBacklinks(e.id);
                 html += `<td>${bl.length}</td>`;
-                html += `<td><button onclick="deleteEntity('${e.id}')" class="text-red-400">🗑</button></td></tr>`;
+                html += `<td class="text-right"><button onclick="deleteEntity('${e.id}')" class="text-red-400 hover:text-red-600 px-2">🗑</button></td></tr>`;
             });
             html += `</tbody></table>`;
             container.innerHTML = html;
 
-            // Render Quick Add Inputs
             const qaDiv = document.getElementById('quickAddInputs');
-            qaDiv.innerHTML = type.attributes.map(a => {
+            qaDiv.innerHTML = t.attributes.map(a => {
                 if (a.type === 'link') {
-                    const targets = appData.entities.filter(e => !a.targetTypeId || e.typeId === a.targetTypeId);
-                    return `<div class="min-w-[120px]"><div class="text-[10px] text-slate-400 font-bold mb-1">${a.name}</div>
-                    <select id="qa-${a.name}" class="input py-1 text-sm"><option value="">--</option>${targets.map(t => `<option value="${t.id}">${getEntityLabel(t.id)}</option>`).join('')}</select></div>`;
+                    const tgts = appData.entities.filter(e => !a.targetTypeId || e.typeId === a.targetTypeId);
+                    return `<div class="min-w-[100px]"><div class="text-[10px] text-slate-400">${a.name}</div><select id="qa-${a.id}" class="input py-1 text-xs"><option value="">--</option>${tgts.map(tg=>`<option value="${tg.id}">${getEntityLabel(tg.id)}</option>`).join('')}</select></div>`;
                 }
-                return `<div class="min-w-[120px]"><div class="text-[10px] text-slate-400 font-bold mb-1">${a.name}</div>
-                <input id="qa-${a.name}" type="${a.type==='int'?'number':'text'}" class="input py-1 text-sm" placeholder="..."></div>`;
+                return `<div class="min-w-[100px]"><div class="text-[10px] text-slate-400">${a.name}</div><input id="qa-${a.id}" type="${(a.type==='int'||a.type==='decimal')?'number':'text'}" class="input py-1 text-xs" placeholder="..."></div>`;
             }).join('');
-        }
+        };
 
-        function editInline(td, id, attrName, type, targetType) {
-            if (td.querySelector('input, select')) return; // Already editing
-            
-            const ent = appData.entities.find(e => e.id === id);
-            const currentVal = ent.values[attrName];
-            
+        window.sortTable = function(colId) {
+            if (tableSort.colId === colId) {
+                tableSort.dir = tableSort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                tableSort.colId = colId;
+                tableSort.dir = 'asc';
+            }
+            renderTable();
+        };
+
+        window.inlineEdit = function(td, entId, attrId, type, targetType) {
+            if(td.querySelector('input,select')) return;
+            const ent = appData.entities.find(e => e.id === entId);
+            const val = ent.values[attrId];
+
             let input;
             if (type === 'link') {
                 input = document.createElement('select');
                 input.className = "inline-input";
-                const targets = appData.entities.filter(e => !targetType || e.typeId === targetType);
-                input.innerHTML = `<option value="">--</option>` + targets.map(t => `<option value="${t.id}" ${currentVal===t.id?'selected':''}>${getEntityLabel(t.id)}</option>`).join('');
+                const tgts = appData.entities.filter(e => !targetType || e.typeId === targetType);
+                input.innerHTML = `<option value="">--</option>` + tgts.map(t => `<option value="${t.id}" ${val===t.id?'selected':''}>${getEntityLabel(t.id)}</option>`).join('');
             } else {
                 input = document.createElement('input');
                 input.className = "inline-input";
-                input.type = (type === 'int' || type === 'decimal') ? 'number' : 'text';
-                input.value = currentVal || '';
+                input.type = (type==='int'||type==='decimal') ? 'number' : 'text';
+                input.value = val || '';
             }
-
+            
             td.innerHTML = '';
             td.appendChild(input);
             input.focus();
 
-            const save = () => {
-                let val = input.value;
-                if (type === 'int') val = parseInt(val);
-                if (type === 'decimal') val = parseFloat(val);
-                ent.values[attrName] = val;
+            const close = () => {
+                let v = input.value;
+                if(type==='int') v = parseInt(v)||0;
+                if(type==='decimal') v = parseFloat(v)||0.0;
+                ent.values[attrId] = v;
                 saveData();
-                renderTable(); // Re-render to show plain text
+                renderTable();
             };
+            input.onblur = close;
+            input.onkeydown = e => { if(e.key==='Enter') input.blur(); };
+        };
 
-            input.onblur = save;
-            input.onkeydown = (e) => { if(e.key === 'Enter') { input.blur(); } };
-        }
-
-        function quickAddEntity() {
+        window.quickAddEntity = function() {
             const tid = document.getElementById('tableTypeSelect').value;
-            const type = getType(tid);
-            const values = {};
-            
-            type.attributes.forEach(a => {
-                const el = document.getElementById(`qa-${a.name}`);
-                let val = el.value;
-                if(a.type === 'int') val = parseInt(val) || 0;
-                if(a.type === 'decimal') val = parseFloat(val) || 0.0;
-                values[a.name] = val;
-                el.value = ''; // Reset input
+            const t = getType(tid);
+            const vals = {};
+            t.attributes.forEach(a => {
+                const el = document.getElementById(`qa-${a.id}`);
+                let v = el.value;
+                if(a.type==='int') v = parseInt(v)||0;
+                if(a.type==='decimal') v = parseFloat(v)||0.0;
+                vals[a.id] = v;
+                el.value = '';
             });
-
-            appData.entities.push({ id: 'e'+Date.now(), typeId: tid, values });
+            appData.entities.push({ id: 'e-'+Date.now(), typeId: tid, values: vals });
             saveData();
-            renderTable();
-        }
-
-        // --- Graph / Mindmap View ---
-        let canvas, ctx, animationId;
-        let nodes = [], links = [];
-        let draggedNode = null;
-
-        function switchTab(tab) {
-            currentTab = tab;
-            document.querySelectorAll('section').forEach(el => el.classList.add('hidden'));
-            document.getElementById('view-' + tab).classList.remove('hidden');
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById('tab-' + tab).classList.add('active');
-            
-            if (tab === 'graph') initGraph();
-            else if (animationId) cancelAnimationFrame(animationId);
-            
             refreshAll();
-        }
+        };
+
+        // --- Graph View (Optimized) ---
+        let canvas, ctx, animId, draggedNode;
+        let nodes = [], links = [];
 
         function initGraph() {
             canvas = document.getElementById('graphCanvas');
-            const parent = canvas.parentElement;
-            canvas.width = parent.clientWidth;
-            canvas.height = parent.clientHeight;
+            const p = canvas.parentElement;
+            canvas.width = p.clientWidth;
+            canvas.height = p.clientHeight;
             ctx = canvas.getContext('2d');
 
-            canvas.onmousedown = graphMouseDown;
-            canvas.onmousemove = graphMouseMove;
-            window.onmouseup = graphMouseUp;
+            canvas.onmousedown = e => {
+                const r = canvas.getBoundingClientRect();
+                const mx = e.clientX - r.left;
+                const my = e.clientY - r.top;
+                for(let i=nodes.length-1; i>=0; i--) {
+                    const n = nodes[i];
+                    if (mx >= n.x && mx <= n.x + n.w && my >= n.y && my <= n.y + n.h) {
+                        draggedNode = n;
+                        n.isDragging = true;
+                        break;
+                    }
+                }
+            };
+            window.onmousemove = e => {
+                if(draggedNode) {
+                    const r = canvas.getBoundingClientRect();
+                    draggedNode.x = e.clientX - r.left - draggedNode.w/2;
+                    draggedNode.y = e.clientY - r.top - draggedNode.h/2;
+                }
+            };
+            window.onmouseup = () => { if(draggedNode) draggedNode.isDragging = false; draggedNode = null; };
 
-            // Prepare Data
-            nodes = appData.entities.map(e => {
-                const type = getType(e.typeId);
-                const typeIdx = appData.types.findIndex(t => t.id === e.typeId);
-                
-                // Content for the card
-                const title = getEntityLabel(e.id, false);
-                const attrLines = type.attributes.map(a => {
-                    let v = e.values[a.name];
-                    if (a.type === 'link' && v) v = getEntityLabel(v, false);
-                    return `${a.name}: ${v || '-'}`;
+            // Build Nodes
+            nodes = appData.entities
+                .filter(e => activeFilters.has(e.typeId))
+                .map(e => {
+                    const t = getType(e.typeId);
+                    const colIdx = appData.types.findIndex(x=>x.id===e.typeId);
+                    
+                    const lines = t.attributes.map(a => {
+                        let v = e.values[a.id];
+                        if(a.type==='link' && v) v = getEntityLabel(v);
+                        return `${a.name}: ${v||'-'}`;
+                    });
+
+                    const existing = nodes.find(n => n.id === e.id);
+                    const w = 160;
+                    const h = 40 + (lines.length*14);
+                    
+                    return {
+                        id: e.id,
+                        x: existing ? existing.x : Math.random() * (canvas.width-w),
+                        y: existing ? existing.y : Math.random() * (canvas.height-h),
+                        vx: 0, vy: 0,
+                        w, h,
+                        color: COLORS[colIdx % COLORS.length],
+                        title: getEntityLabel(e.id, false),
+                        type: t.name,
+                        lines,
+                        isDragging: false
+                    };
                 });
 
-                return {
-                    id: e.id,
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    vx: 0, vy: 0,
-                    w: 160, h: 40 + (attrLines.length * 14),
-                    color: TYPE_COLORS[typeIdx % TYPE_COLORS.length],
-                    type: type.name,
-                    title: title,
-                    lines: attrLines
-                };
-            });
-
+            // Build Links
             links = [];
             appData.entities.forEach(e => {
-                const type = getType(e.typeId);
-                type.attributes.forEach(a => {
-                    if (a.type === 'link' && e.values[a.name]) {
-                        // Find target
-                        const target = appData.entities.find(t => t.id === e.values[a.name]);
-                        if (target) links.push({ source: e.id, target: target.id });
+                if(!activeFilters.has(e.typeId)) return;
+                const t = getType(e.typeId);
+                t.attributes.forEach(a => {
+                    if(a.type === 'link' && e.values[a.id]) {
+                        if(nodes.find(n=>n.id === e.values[a.id])) {
+                            links.push({ s: e.id, t: e.values[a.id] });
+                        }
                     }
                 });
             });
 
-            if (animationId) cancelAnimationFrame(animationId);
-            animateGraph();
+            if(animId) cancelAnimationFrame(animId);
+            animate();
         }
 
-        function animateGraph() {
-            // Physics
-            const kRep = 5000;
-            const kSpring = 0.05;
+        // Helper: Intersection of Line (P1->P2) with Rectangle (R)
+        function getRectIntersection(p1, p2, rect) {
+            const minX = rect.x, maxX = rect.x + rect.w;
+            const minY = rect.y, maxY = rect.y + rect.h;
+            const cx = rect.x + rect.w/2;
+            const cy = rect.y + rect.h/2;
             
-            // Repulsion
-            for (let i=0; i<nodes.length; i++) {
-                for (let j=i+1; j<nodes.length; j++) {
-                    const dx = nodes[j].x - nodes[i].x;
-                    const dy = nodes[j].y - nodes[i].y;
-                    const d2 = dx*dx + dy*dy || 1;
-                    const f = kRep / d2;
-                    const dist = Math.sqrt(d2);
-                    const fx = (dx/dist) * f;
-                    const fy = (dy/dist) * f;
-                    nodes[i].vx -= fx; nodes[i].vy -= fy;
-                    nodes[j].vx += fx; nodes[j].vy += fy;
+            // Vector d from center to P2 (target direction)
+            const dx = p2.x - cx;
+            const dy = p2.y - cy;
+            
+            // Check intersections with 4 sides
+            // Top: y = minY
+            let t = (minY - cy) / dy;
+            let ix = cx + t * dx;
+            if (t > 0 && ix >= minX && ix <= maxX) return {x: ix, y: minY};
+            
+            // Bottom: y = maxY
+            t = (maxY - cy) / dy;
+            ix = cx + t * dx;
+            if (t > 0 && ix >= minX && ix <= maxX) return {x: ix, y: maxY};
+            
+            // Left: x = minX
+            t = (minX - cx) / dx;
+            let iy = cy + t * dy;
+            if (t > 0 && iy >= minY && iy <= maxY) return {x: minX, y: iy};
+            
+            // Right: x = maxX
+            t = (maxX - cx) / dx;
+            iy = cy + t * dy;
+            if (t > 0 && iy >= minY && iy <= maxY) return {x: maxX, y: iy};
+            
+            return {x: cx, y: cy}; // Fallback
+        }
+
+        function animate() {
+            // Physics: Repulsion (Overlap Prevention)
+            for(let i=0; i<nodes.length; i++) {
+                for(let j=i+1; j<nodes.length; j++) {
+                    const n1 = nodes[i];
+                    const n2 = nodes[j];
+                    
+                    // Center points
+                    const c1x = n1.x + n1.w/2; const c1y = n1.y + n1.h/2;
+                    const c2x = n2.x + n2.w/2; const c2y = n2.y + n2.h/2;
+                    
+                    const dx = c2x - c1x; const dy = c2y - c1y;
+                    const distSq = dx*dx + dy*dy || 1;
+                    const dist = Math.sqrt(distSq);
+                    
+                    // Simple radial repulsion is okay, but box separation is better.
+                    // Let's use strong radial force for simplicity + box bounds check?
+                    // Box-overlap check:
+                    const padding = 20;
+                    if (n1.x < n2.x + n2.w + padding && n1.x + n1.w + padding > n2.x &&
+                        n1.y < n2.y + n2.h + padding && n1.y + n1.h + padding > n2.y) {
+                        
+                        // Overlap detected. Push apart.
+                        const overlapX = (n1.w + n2.w)/2 - Math.abs(dx) + padding;
+                        const overlapY = (n1.h + n2.h)/2 - Math.abs(dy) + padding;
+                        
+                        // Push in direction of smallest overlap
+                        if (overlapX < overlapY) {
+                            const fx = (dx > 0 ? -1 : 1) * overlapX * 0.1;
+                            if(!n1.isDragging) n1.vx += fx;
+                            if(!n2.isDragging) n2.vx -= fx;
+                        } else {
+                            const fy = (dy > 0 ? -1 : 1) * overlapY * 0.1;
+                            if(!n1.isDragging) n1.vy += fy;
+                            if(!n2.isDragging) n2.vy -= fy;
+                        }
+                    }
+                    
+                    // Global Gravity to assist layout structure
+                    // Weak repulsion everywhere
+                    if (dist < 500) {
+                         const f = 2000 / distSq;
+                         const fx = (dx/dist) * f;
+                         const fy = (dy/dist) * f;
+                         if(!n1.isDragging) { n1.vx -= fx; n1.vy -= fy; }
+                         if(!n2.isDragging) { n2.vx += fx; n2.vy += fy; }
+                    }
                 }
             }
 
-            // Springs
+            // Physics: Links (Attraction)
             links.forEach(l => {
-                const s = nodes.find(n => n.id === l.source);
-                const t = nodes.find(n => n.id === l.target);
-                if (s && t) {
-                    const dx = t.x - s.x;
-                    const dy = t.y - s.y;
+                const s = nodes.find(n=>n.id===l.s);
+                const t = nodes.find(n=>n.id===l.t);
+                if(s && t) {
+                    const c1x = s.x + s.w/2; const c1y = s.y + s.h/2;
+                    const c2x = t.x + t.w/2; const c2y = t.y + t.h/2;
+                    const dx = c2x - c1x; const dy = c2y - c1y;
                     const d = Math.sqrt(dx*dx + dy*dy) || 1;
-                    const f = (d - 200) * kSpring;
-                    const fx = (dx/d) * f;
-                    const fy = (dy/d) * f;
-                    s.vx += fx; s.vy += fy;
-                    t.vx -= fx; t.vy -= fy;
-                }
-            });
-
-            // Update & Draw
-            ctx.clearRect(0,0, canvas.width, canvas.height);
-            
-            // Draw Lines (Left In, Right Out logic implies source right -> target left)
-            links.forEach(l => {
-                const s = nodes.find(n => n.id === l.source);
-                const t = nodes.find(n => n.id === l.target);
-                if (s && t) {
-                    const sx = s.x + s.w/2; 
-                    const sy = s.y;
-                    const tx = t.x - t.w/2;
-                    const ty = t.y;
                     
-                    ctx.beginPath();
-                    ctx.moveTo(sx, sy);
-                    // Bezier for nicer curves
-                    ctx.bezierCurveTo(sx + 50, sy, tx - 50, ty, tx, ty);
-                    ctx.strokeStyle = '#94a3b8';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-
-                    // Arrow head
-                    ctx.beginPath();
-                    ctx.fillStyle = '#94a3b8';
-                    ctx.moveTo(tx, ty);
-                    ctx.lineTo(tx - 10, ty - 5);
-                    ctx.lineTo(tx - 10, ty + 5);
-                    ctx.fill();
+                    // Optimal distance
+                    const optDist = 200;
+                    if (d > optDist) {
+                        const f = (d - optDist) * 0.005;
+                        if(!s.isDragging) { s.vx += (dx/d)*f; s.vy += (dy/d)*f; }
+                        if(!t.isDragging) { t.vx -= (dx/d)*f; t.vy -= (dy/d)*f; }
+                    }
                 }
             });
 
+            // Update Position & Damping
             nodes.forEach(n => {
-                if (n !== draggedNode) {
-                    // Center gravity weak
-                    n.vx += (canvas.width/2 - n.x) * 0.002;
-                    n.vy += (canvas.height/2 - n.y) * 0.002;
-                    
-                    n.x += n.vx; n.y += n.vy;
-                    n.vx *= 0.9; n.vy *= 0.9;
+                if(!n.isDragging) {
+                    n.x += n.vx;
+                    n.y += n.vy;
+                    // High friction
+                    n.vx *= 0.6;
+                    n.vy *= 0.6;
                 }
-
-                // Draw Card
-                const x = n.x - n.w/2;
-                const y = n.y - n.h/2;
                 
-                // Shadow
-                ctx.fillStyle = 'rgba(0,0,0,0.1)';
-                ctx.fillRect(x+3, y+3, n.w, n.h);
+                // Canvas Bounds
+                if(n.x < 0) n.x = 0;
+                if(n.y < 0) n.y = 0;
+                if(n.x + n.w > canvas.width) n.x = canvas.width - n.w;
+                if(n.y + n.h > canvas.height) n.y = canvas.height - n.h;
+            });
 
-                // Body
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+
+            // LAYER 1: Backgrounds
+            nodes.forEach(n => {
                 ctx.fillStyle = 'white';
-                ctx.fillRect(x, y, n.w, n.h);
-                
-                // Header (Type Color)
+                ctx.fillRect(n.x, n.y, n.w, n.h);
                 ctx.fillStyle = n.color;
-                ctx.fillRect(x, y, n.w, 4);
-
-                // Border
+                ctx.fillRect(n.x, n.y, n.w, 4);
+                ctx.lineWidth = 1;
                 ctx.strokeStyle = '#e2e8f0';
-                ctx.strokeRect(x, y, n.w, n.h);
+                ctx.strokeRect(n.x, n.y, n.w, n.h);
+            });
 
-                // Text
+            // LAYER 2: Links (Clipped to borders)
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#cbd5e1';
+            links.forEach(l => {
+                const s = nodes.find(n=>n.id===l.s);
+                const t = nodes.find(n=>n.id===l.t);
+                if(s && t) {
+                    const sc = {x: s.x+s.w/2, y: s.y+s.h/2};
+                    const tc = {x: t.x+t.w/2, y: t.y+t.h/2};
+                    
+                    // Intersections
+                    const p1 = getRectIntersection(sc, tc, s);
+                    const p2 = getRectIntersection(tc, sc, t);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                    
+                    // Arrow at p2
+                    const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                    ctx.beginPath();
+                    ctx.fillStyle = '#cbd5e1';
+                    ctx.translate(p2.x, p2.y);
+                    ctx.rotate(angle);
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(-10, -5);
+                    ctx.lineTo(-10, 5);
+                    ctx.fill();
+                    ctx.rotate(-angle);
+                    ctx.translate(-p2.x, -p2.y);
+                }
+            });
+
+            // LAYER 3: Text
+            nodes.forEach(n => {
                 ctx.fillStyle = n.color;
                 ctx.font = 'bold 10px sans-serif';
-                ctx.fillText(n.type.toUpperCase(), x + 8, y + 18);
-
+                ctx.fillText(n.type.toUpperCase(), n.x+8, n.y+18);
+                
                 ctx.fillStyle = '#1e293b';
                 ctx.font = 'bold 12px sans-serif';
-                ctx.fillText(n.title, x + 8, y + 34);
-
+                ctx.fillText(n.title, n.x+8, n.y+34);
+                
                 ctx.fillStyle = '#64748b';
                 ctx.font = '10px sans-serif';
-                n.lines.forEach((line, idx) => {
-                    ctx.fillText(line, x + 8, y + 50 + (idx * 14));
+                n.lines.forEach((l, i) => {
+                    ctx.fillText(l, n.x+8, n.y+52+(i*14));
                 });
             });
 
-            animationId = requestAnimationFrame(animateGraph);
+            animId = requestAnimationFrame(animate);
         }
 
-        function graphMouseDown(e) {
-            const rect = canvas.getBoundingClientRect();
-            const mx = e.clientX - rect.left;
-            const my = e.clientY - rect.top;
-            draggedNode = nodes.find(n => 
-                mx >= n.x - n.w/2 && mx <= n.x + n.w/2 &&
-                my >= n.y - n.h/2 && my <= n.y + n.h/2
-            );
-        }
-        function graphMouseMove(e) {
-            if (draggedNode) {
-                const rect = canvas.getBoundingClientRect();
-                draggedNode.x = e.clientX - rect.left;
-                draggedNode.y = e.clientY - rect.top;
-            }
-        }
-        function graphMouseUp() { draggedNode = null; }
-
-        // Import/Export
         function exportData() {
-            const blob = new Blob([JSON.stringify(appData, null, 2)], {type: 'application/json'});
+            const b = new Blob([JSON.stringify(appData,null,2)],{type:'application/json'});
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'entity_data.json';
-            a.click();
+            a.href = URL.createObjectURL(b); a.download='data.json'; a.click();
         }
         function importData(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-                try {
-                    appData = JSON.parse(evt.target.result);
-                    saveData();
-                    refreshAll();
-                    alert("Import erfolgreich!");
-                } catch(err) { alert("Fehler beim Import"); }
+            const f=e.target.files[0]; if(!f)return;
+            const r=new FileReader();
+            r.onload = ev => {
+                try { appData = JSON.parse(ev.target.result); saveData(); refreshAll(); alert("OK"); }
+                catch(x){alert("Fehler");}
             };
-            reader.readAsText(file);
+            r.readAsText(f);
         }
-
-        // Init
-        loadData();
+        function toggleConfigModal(s) { document.getElementById('configModal').style.display=s?'flex':'none'; if(s) resetConfigForm(); }
     </script>
 </body>
 </html>
