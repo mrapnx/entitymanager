@@ -1,22 +1,21 @@
-# Verwende ein leichtgewichtiges Node.js Image
+# Basis Image
 FROM node:18-alpine
 
-# Arbeitsverzeichnis im Container
+# Verzeichnis
 WORKDIR /app
 
-# Initialisiere ein minimales Projekt und installiere Express
-# Wir machen das direkt hier, um keine package.json kopieren zu müssen
+# Dependencies
 RUN npm init -y && npm install express
 
-# Kopiere die Anwendungsdateien
+# Files
 COPY server.js .
 COPY entity_manager.html .
 
-# Erstelle das Datenverzeichnis
+# Data Volume Ordner
 RUN mkdir -p /app/data
 
-# Exponiere den Port, auf dem der Express-Server läuft
+# Port
 EXPOSE 3000
 
-# Startbefehl
+# Start
 CMD ["node", "server.js"]

@@ -3,388 +3,858 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Entity Manager - Persistent Edition</title>
+    <title>Dynamic Entity Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #f8fafc; color: #1e293b; scroll-behavior: smooth; overflow-x: hidden; }
-        .card { background: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); transition: all 0.3s ease; }
-        .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; }
-        .btn-primary { background-color: #3b82f6; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; transition: background 0.2s; display: inline-flex; align-items: center; gap: 0.5rem; }
+        body { background-color: #f1f5f9; color: #1e293b; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .scroll-container { overflow-y: auto; height: 100%; padding-bottom: 2rem; }
+        .card { background: white; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: box-shadow 0.2s; border: 1px solid #e2e8f0; }
+        .card:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .btn { padding: 0.5rem 1rem; border-radius: 0.375rem; font-weight: 500; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+        .btn-primary { background-color: #3b82f6; color: white; }
         .btn-primary:hover { background-color: #2563eb; }
-        .btn-ghost { color: #64748b; border: 1px solid #cbd5e1; padding: 0.5rem 1rem; border-radius: 0.5rem; }
-        .input-field { width: 100%; border: 1px solid #cbd5e1; padding: 0.5rem; border-radius: 0.375rem; margin-top: 0.25rem; }
+        .btn-ghost { background-color: transparent; color: #64748b; border: 1px solid #cbd5e1; }
+        .btn-ghost:hover { background-color: #f8fafc; color: #334155; }
+        .input { width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.375rem; font-size: 0.875rem; }
+        .input:focus { outline: none; border-color: #3b82f6; ring: 2px; }
+        .tab-btn { padding: 0.75rem 1.5rem; border-bottom: 2px solid transparent; color: #64748b; font-weight: 500; }
+        .tab-btn.active { border-color: #3b82f6; color: #3b82f6; }
         
-        #configModal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
-        .modal-content { background: white; width: 95%; max-width: 900px; max-height: 90vh; overflow-y: auto; border-radius: 1rem; padding: 2rem; position: relative; }
+        /* Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        .modal-content { background: white; width: 90%; max-width: 900px; max-height: 90vh; border-radius: 0.75rem; padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; }
 
-        .table-container { overflow-x: auto; border-radius: 0.75rem; border: 1px solid #e2e8f0; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th { background-color: #f1f5f9; text-align: left; padding: 0.75rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #64748b; border-bottom: 2px solid #e2e8f0; }
-        td { padding: 0.75rem; border-bottom: 1px solid #f1f5f9; font-size: 0.875rem; vertical-align: middle; }
+        /* Table */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        .data-table th { text-align: left; padding: 0.75rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600; }
+        .data-table td { padding: 0.75rem; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+        .data-table tr:hover { background: #fdfdfd; }
+        .inline-input { width: 100%; padding: 0.25rem; border: 1px solid transparent; background: transparent; border-radius: 0.25rem; }
+        .inline-input:focus { border-color: #3b82f6; background: white; }
+        .inline-input:hover { border-color: #e2e8f0; }
 
-        .inline-edit-input { width: 100%; padding: 4px; border: 1px solid #3b82f6; border-radius: 4px; outline: none; background: white; }
-        .icon-btn { padding: 0.4rem; border-radius: 0.375rem; transition: background 0.2s; display: inline-flex; align-items: center; justify-content: center; }
-        .icon-btn-edit { color: #3b82f6; }
-        .icon-btn-delete { color: #ef4444; }
+        /* Graph */
+        #graphCanvas { width: 100%; height: 100%; cursor: grab; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; }
+        #graphCanvas:active { cursor: grabbing; }
 
-        #mindmapContainer { position: relative; width: 100%; height: 600px; background: #f1f5f9; border-radius: 0.75rem; border: 1px solid #e2e8f0; overflow: hidden; }
-        
-        @keyframes highlight {
-            0% { background-color: #dbeafe; transform: scale(1.02); }
-            100% { background-color: white; transform: scale(1); }
-        }
-        .highlight-target { animation: highlight 2s ease-out; border: 2px solid #3b82f6 !important; }
+        /* Animations */
+        @keyframes highlight { 0% { background: #dbeafe; transform: scale(1.02); } 100% { background: white; transform: scale(1); } }
+        .highlight-target { animation: highlight 1.5s ease-out; border: 1px solid #3b82f6 !important; }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body>
 
-    <div class="max-w-7xl mx-auto">
-        <header class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-                <h1 class="text-3xl font-bold text-slate-900">Entity Manager <span class="text-blue-500 text-lg">v11.0</span></h1>
-                <p class="text-slate-500">Persistent mit Node.js & JSON-DB.</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <button onclick="toggleConfigModal(true)" class="btn-ghost flex items-center gap-2 hover:bg-slate-50">
-                    Konfiguration
-                </button>
-                <div id="saveIndicator" class="text-[10px] font-bold uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded">Synchronisiert</div>
-            </div>
-        </header>
-
-        <div class="flex border-b border-slate-200 mb-6 overflow-x-auto whitespace-nowrap">
-            <button onclick="switchTab('entities')" id="tab-entities" class="px-6 py-2 font-medium tab-active">Karten</button>
-            <button onclick="switchTab('lists')" id="tab-lists" class="px-6 py-2 font-medium">Tabelle</button>
-            <button onclick="switchTab('mindmap')" id="tab-mindmap" class="px-6 py-2 font-medium">Graph (Karten)</button>
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm z-10">
+        <div>
+            <h1 class="text-xl font-bold text-slate-800">Dynamic Entity Manager</h1>
+            <div id="statusIndicator" class="text-xs text-slate-400 font-mono mt-1">Bereit</div>
         </div>
+        <div class="flex gap-2">
+            <button onclick="toggleConfigModal(true)" class="btn btn-ghost text-sm">
+                ⚙️ Konfiguration
+            </button>
+        </div>
+    </header>
 
-        <section id="section-entities" class="block">
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-slate-200 px-6 flex gap-4 overflow-x-auto">
+        <button onclick="switchTab('cards')" id="tab-cards" class="tab-btn active">Karten</button>
+        <button onclick="switchTab('table')" id="tab-table" class="tab-btn">Tabelle</button>
+        <button onclick="switchTab('graph')" id="tab-graph" class="tab-btn">Mindmap</button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-hidden relative">
+        
+        <!-- VIEW 1: CARDS -->
+        <section id="view-cards" class="h-full scroll-container p-6">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="card p-6 h-fit">
-                    <h2 class="text-xl font-semibold mb-4 text-slate-800">Datensatz bearbeiten</h2>
-                    <input type="hidden" id="editEntityId">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="text-sm font-medium text-slate-600">Typ</label>
-                            <select id="entityTypeSelect" class="input-field" onchange="renderEntityFormFields()"></select>
+                <!-- Create Form -->
+                <div class="lg:col-span-1">
+                    <div class="card p-5 sticky top-0">
+                        <h2 class="text-lg font-bold mb-4 text-slate-700">Entität erstellen / bearbeiten</h2>
+                        <input type="hidden" id="editEntityId">
+                        <div class="mb-4">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Typ</label>
+                            <select id="entityTypeSelect" class="input" onchange="renderEntityFormFields()"></select>
                         </div>
-                        <div id="entityFormFields" class="space-y-4"></div>
-                        <div class="flex gap-2">
-                            <button id="saveEntityBtn" onclick="saveEntity()" class="btn-primary flex-1 justify-center hidden">Speichern</button>
-                            <button id="cancelEntityBtn" onclick="resetEntityForm()" class="btn-ghost hidden">Abbrechen</button>
+                        <div id="entityFormFields" class="space-y-3"></div>
+                        <div class="flex gap-2 mt-6">
+                            <button onclick="saveEntity()" class="btn btn-primary flex-1 justify-center">Speichern</button>
+                            <button onclick="resetEntityForm()" class="btn btn-ghost hidden" id="cancelEditBtn">Abbrechen</button>
                         </div>
                     </div>
                 </div>
-                <div class="lg:col-span-2">
-                    <div id="entityDisplay" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                <!-- List -->
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-lg font-bold text-slate-700">Übersicht</h2>
+                        <input type="text" id="cardSearch" placeholder="Suchen..." class="input w-64" oninput="renderCards()">
+                    </div>
+                    <div id="cardsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 </div>
             </div>
         </section>
 
-        <section id="section-lists" class="hidden">
-            <div class="card p-6">
-                <select id="listTypeSelect" class="input-field mb-4 w-64" onchange="renderListView()"></select>
-                <div id="listTableContainer" class="table-container"></div>
+        <!-- VIEW 2: TABLE -->
+        <section id="view-table" class="h-full scroll-container p-6 hidden">
+            <div class="card p-0 overflow-hidden flex flex-col h-full">
+                <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-bold text-slate-600">Typ wählen:</span>
+                        <select id="tableTypeSelect" class="input w-64 bg-white" onchange="renderTable()"></select>
+                    </div>
+                </div>
+                <div class="overflow-auto flex-1 p-4">
+                    <div id="tableContainer"></div>
+                </div>
+                <div id="quickAddRow" class="p-4 border-t border-slate-200 bg-slate-50 hidden">
+                    <div class="text-xs font-bold text-slate-400 uppercase mb-2">Quick Add</div>
+                    <div id="quickAddInputs" class="flex gap-2 mb-2 overflow-x-auto pb-2"></div>
+                    <button onclick="quickAddEntity()" class="btn btn-primary text-xs py-1">Hinzufügen</button>
+                </div>
             </div>
         </section>
 
-        <section id="section-mindmap" class="hidden">
-            <div class="card p-6">
-                <div id="mindmapContainer"><canvas id="mindmapCanvas"></canvas></div>
+        <!-- VIEW 3: GRAPH -->
+        <section id="view-graph" class="h-full w-full hidden relative p-0">
+            <canvas id="graphCanvas"></canvas>
+            <div class="absolute top-4 left-4 bg-white/90 p-2 rounded border border-slate-200 shadow-sm text-xs text-slate-500">
+                <p>Drag: Verschieben</p>
+                <p>Links: Eingang, Rechts: Ausgang</p>
             </div>
         </section>
-    </div>
 
-    <!-- Modal für Typen -->
-    <div id="configModal">
+    </main>
+
+    <!-- CONFIG MODAL -->
+    <div id="configModal" class="modal-overlay">
         <div class="modal-content">
-            <button onclick="toggleConfigModal(false)" class="absolute top-4 right-4 text-2xl">&times;</button>
-            <h2 class="text-2xl font-bold mb-6">Typen & Felder</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div class="bg-slate-50 p-4 rounded-lg">
-                    <input type="hidden" id="editTypeId">
-                    <input type="text" id="typeName" class="input-field mb-4" placeholder="Typen-Name">
-                    <div id="attributeList" class="space-y-2 mb-4"></div>
-                    <button onclick="addAttributeRow()" class="text-sm text-blue-600 font-bold mb-4">+ Feld hinzufügen</button>
-                    <button onclick="saveType()" class="btn-primary w-full justify-center">Typ Speichern</button>
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <h2 class="text-xl font-bold">Konfiguration</h2>
+                <button onclick="toggleConfigModal(false)" class="text-2xl text-slate-400 hover:text-slate-600">&times;</button>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+                <!-- Type Editor -->
+                <div class="bg-slate-50 p-4 rounded border border-slate-200 h-full flex flex-col">
+                    <h3 class="font-bold mb-3 text-slate-700">Typ definieren</h3>
+                    <input type="hidden" id="configTypeId">
+                    <input type="text" id="configTypeName" class="input mb-3" placeholder="Name des Typs (z.B. Projekt)">
+                    
+                    <div class="flex-1 overflow-y-auto mb-3 border border-slate-200 bg-white rounded p-2" id="attrList">
+                        <!-- Attribute Rows go here -->
+                    </div>
+                    
+                    <button onclick="addAttrRow()" class="text-blue-600 text-sm font-medium hover:underline mb-4">+ Attribut hinzufügen</button>
+                    
+                    <div class="flex gap-2">
+                        <button onclick="saveType()" class="btn btn-primary flex-1 justify-center">Typ Speichern</button>
+                        <button onclick="resetConfigForm()" class="btn btn-ghost" id="cancelConfigBtn" style="display:none;">Abbrechen</button>
+                    </div>
                 </div>
-                <div id="typeDisplay" class="space-y-2"></div>
+
+                <!-- Existing Types List -->
+                <div class="h-full flex flex-col">
+                    <h3 class="font-bold mb-3 text-slate-700">Vorhandene Typen</h3>
+                    <div id="typesList" class="flex-1 overflow-y-auto space-y-2"></div>
+                    
+                    <div class="mt-4 pt-4 border-t border-slate-200">
+                        <h4 class="text-xs font-bold uppercase text-slate-400 mb-2">Datenverwaltung</h4>
+                        <div class="flex gap-2">
+                            <button onclick="exportData()" class="btn btn-ghost text-xs py-1">JSON Export</button>
+                            <label class="btn btn-ghost text-xs py-1 cursor-pointer">
+                                JSON Import
+                                <input type="file" onchange="importData(event)" class="hidden" accept=".json">
+                            </label>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- LOGIC -->
     <script>
+        // --- State ---
         let appData = { types: [], entities: [] };
-        let currentTab = 'entities';
-        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+        let currentTab = 'cards';
+        
+        // Colors for Graph/Cards
+        const TYPE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
-        // --- API Integration ---
+        // --- API / Persistence ---
         async function loadData() {
+            updateStatus("Lade Daten...");
             try {
                 const res = await fetch('/api/data');
                 appData = await res.json();
-                refreshAllViews();
-            } catch (e) { console.error("Load error", e); }
+                refreshAll();
+                updateStatus("Synchronisiert");
+            } catch (e) {
+                console.error(e);
+                updateStatus("Fehler beim Laden", true);
+            }
         }
 
-        async function syncData() {
-            const indicator = document.getElementById('saveIndicator');
-            indicator.innerText = "Speichere...";
+        async function saveData() {
+            updateStatus("Speichere...");
             try {
                 await fetch('/api/save', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(appData)
                 });
-                indicator.innerText = "Synchronisiert";
-            } catch (e) { indicator.innerText = "Speicherfehler!"; }
+                updateStatus("Synchronisiert");
+            } catch (e) {
+                updateStatus("Fehler beim Speichern", true);
+            }
         }
 
-        // --- UI Logic ---
-        function switchTab(tab) {
-            currentTab = tab;
-            ['entities', 'lists', 'mindmap'].forEach(t => {
-                document.getElementById('section-' + t).classList.toggle('hidden', t !== tab);
-                document.getElementById('tab-' + t).classList.toggle('tab-active', t === tab);
+        function updateStatus(msg, isError = false) {
+            const el = document.getElementById('statusIndicator');
+            el.textContent = msg;
+            el.className = isError ? "text-xs text-red-500 font-bold mt-1" : "text-xs text-green-600 font-mono mt-1";
+        }
+
+        // --- Core Helpers ---
+        function getBacklinks(entityId) {
+            return appData.entities.filter(e => {
+                const t = getType(e.typeId);
+                return t.attributes.some(a => a.type === 'link' && e.values[a.name] === entityId);
             });
-            if (tab === 'mindmap') initMindmap();
-            else refreshAllViews();
         }
 
-        function refreshAllViews() {
-            updateTypeSelects();
-            renderTypes();
-            if (currentTab === 'entities') renderEntities();
-            if (currentTab === 'lists') renderListView();
+        function getType(id) { return appData.types.find(t => t.id === id); }
+        
+        function getEntityLabel(entityId, withType = false) {
+            const ent = appData.entities.find(e => e.id === entityId);
+            if (!ent) return "Unbekannt";
+            const type = getType(ent.typeId);
+            const name = ent.values[Object.keys(ent.values)[0]] || ent.id; // First value as label
+            return withType ? `${type.name}: ${name}` : name;
         }
 
+        function refreshAll() {
+            updateSelects();
+            renderTypesList();
+            
+            if (currentTab === 'cards') renderCards();
+            if (currentTab === 'table') renderTable();
+            if (currentTab === 'graph') initGraph(); // Re-init graph logic
+        }
+
+        // --- Config Modal Logic ---
         function toggleConfigModal(show) {
             document.getElementById('configModal').style.display = show ? 'flex' : 'none';
+            if (show) { renderTypesList(); if(document.getElementById('attrList').children.length === 0) addAttrRow(); }
+            else refreshAll();
         }
 
-        function updateTypeSelects() {
-            ['entityTypeSelect', 'listTypeSelect'].forEach(id => {
-                const s = document.getElementById(id);
-                const cur = s.value;
-                s.innerHTML = '<option value="">-- Typ wählen --</option>' + 
-                    appData.types.map(t => `<option value="${t.id}" ${cur === t.id ? 'selected' : ''}>${t.name}</option>`).join('');
-            });
-        }
-
-        function renderEntityFormFields(existingValues = null) {
-            const typeId = document.getElementById('entityTypeSelect').value;
-            const container = document.getElementById('entityFormFields');
-            container.innerHTML = '';
-            if (!typeId) { document.getElementById('saveEntityBtn').classList.add('hidden'); return; }
-            
-            const type = appData.types.find(t => t.id === typeId);
-            type.attributes.forEach(attr => {
-                const val = existingValues ? existingValues[attr.name] : '';
-                let input = `<input type="text" class="input-field entity-val" data-attr="${attr.name}" value="${val}">`;
-                if (attr.type === 'link') {
-                    const targets = appData.entities.filter(e => !attr.targetTypeId || e.typeId === attr.targetTypeId);
-                    input = `<select class="input-field entity-val" data-attr="${attr.name}">
-                        <option value="">-- Link --</option>
-                        ${targets.map(t => `<option value="${t.id}" ${val === t.id ? 'selected' : ''}>${getEntityLabel(t.id)}</option>`).join('')}
-                    </select>`;
-                }
-                container.innerHTML += `<div><label class="text-[10px] font-bold text-slate-400 uppercase">${attr.name}</label>${input}</div>`;
-            });
-            document.getElementById('saveEntityBtn').classList.remove('hidden');
-            document.getElementById('cancelEntityBtn').classList.remove('hidden');
-        }
-
-        function getEntityLabel(id) {
-            const ent = appData.entities.find(e => e.id === id);
-            if (!ent) return 'Unbekannt';
-            const type = appData.types.find(t => t.id === ent.typeId);
-            return `${type.name}: ${Object.values(ent.values)[0] || id}`;
-        }
-
-        function saveEntity() {
-            const typeId = document.getElementById('entityTypeSelect').value;
-            const editId = document.getElementById('editEntityId').value;
-            const values = {};
-            document.querySelectorAll('#entityFormFields .entity-val').forEach(i => values[i.dataset.attr] = i.value);
-
-            if (editId) {
-                const idx = appData.entities.findIndex(e => e.id === editId);
-                appData.entities[idx].values = values;
-            } else {
-                appData.entities.push({ id: 'e' + Date.now(), typeId, values });
-            }
-            resetEntityForm();
-            syncData();
-            refreshAllViews();
-        }
-
-        function resetEntityForm() {
-            document.getElementById('editEntityId').value = "";
-            document.getElementById('entityTypeSelect').value = "";
-            document.getElementById('entityTypeSelect').disabled = false;
-            document.getElementById('entityFormFields').innerHTML = "";
-            document.getElementById('saveEntityBtn').classList.add('hidden');
-            document.getElementById('cancelEntityBtn').classList.add('hidden');
-        }
-
-        function renderEntities() {
-            const container = document.getElementById('entityDisplay');
-            container.innerHTML = appData.entities.map(ent => {
-                const type = appData.types.find(t => t.id === ent.typeId);
-                return `
-                <div class="card p-4 border-l-4 border-blue-500">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded">${type.name}</span>
-                        <div class="flex gap-1">
-                            <button onclick="editEntity('${ent.id}')" class="icon-btn icon-btn-edit">✎</button>
-                            <button onclick="deleteEntity('${ent.id}')" class="icon-btn icon-btn-delete">🗑</button>
-                        </div>
-                    </div>
-                    <div class="text-sm space-y-1">
-                        ${type.attributes.map(a => `<div class="flex"><span class="w-24 text-slate-400 font-bold text-[10px] uppercase">${a.name}</span><span>${ent.values[a.name] || '-'}</span></div>`).join('')}
-                    </div>
-                </div>`;
-            }).join('');
-        }
-
-        function editEntity(id) {
-            const ent = appData.entities.find(e => e.id === id);
-            document.getElementById('editEntityId').value = ent.id;
-            document.getElementById('entityTypeSelect').value = ent.typeId;
-            document.getElementById('entityTypeSelect').disabled = true;
-            renderEntityFormFields(ent.values);
-        }
-
-        function deleteEntity(id) {
-            if (confirm("Löschen?")) {
-                appData.entities = appData.entities.filter(e => e.id !== id);
-                syncData();
-                refreshAllViews();
-            }
-        }
-
-        // --- Graph Logic (Karten-Rendering) ---
-        let nodes = [], links = [], canvas, ctx, animationId, draggedNode = null;
-        const CARD_WIDTH = 150;
-
-        function initMindmap() {
-            canvas = document.getElementById('mindmapCanvas');
-            ctx = canvas.getContext('2d');
-            canvas.width = canvas.parentElement.clientWidth;
-            canvas.height = canvas.parentElement.clientHeight;
-            
-            canvas.onmousedown = (e) => {
-                const r = canvas.getBoundingClientRect();
-                const x = e.clientX - r.left, y = e.clientY - r.top;
-                draggedNode = nodes.find(n => x >= n.x - n.w/2 && x <= n.x + n.w/2 && y >= n.y - n.h/2 && y <= n.y + n.h/2);
-            };
-            window.onmousemove = (e) => {
-                if (draggedNode) {
-                    const r = canvas.getBoundingClientRect();
-                    draggedNode.x = e.clientX - r.left;
-                    draggedNode.y = e.clientY - r.top;
-                }
-            };
-            window.onmouseup = () => draggedNode = null;
-
-            prepareGraphData();
-            animate();
-        }
-
-        function prepareGraphData() {
-            nodes = appData.entities.map(ent => {
-                const type = appData.types.find(t => t.id === ent.typeId);
-                const h = 40 + (type.attributes.length * 12);
-                return {
-                    id: ent.id,
-                    x: Math.random() * canvas.width, y: Math.random() * canvas.height,
-                    vx: 0, vy: 0, w: CARD_WIDTH, h: h,
-                    type: type.name,
-                    label: Object.values(ent.values)[0] || ent.id,
-                    attrs: type.attributes.map(a => ({ n: a.name, v: ent.values[a.name] })),
-                    color: colors[appData.types.indexOf(type) % colors.length]
-                };
-            });
-            links = [];
-            appData.entities.forEach(ent => {
-                const type = appData.types.find(t => t.id === ent.typeId);
-                type.attributes.forEach(a => {
-                    if (a.type === 'link' && ent.values[a.name]) links.push({ s: ent.id, t: ent.values[a.name] });
-                });
-            });
-        }
-
-        function animate() {
-            updatePhysics();
-            draw();
-            animationId = requestAnimationFrame(animate);
-        }
-
-        function updatePhysics() {
-            nodes.forEach(n => {
-                if (n === draggedNode) return;
-                n.vx += (canvas.width/2 - n.x) * 0.001;
-                n.vy += (canvas.height/2 - n.y) * 0.001;
-                n.x += n.vx; n.y += n.vy; n.vx *= 0.9; n.vy *= 0.9;
-            });
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            links.forEach(l => {
-                const s = nodes.find(n => n.id === l.s), t = nodes.find(n => n.id === l.t);
-                if (!s || !t) return;
-                ctx.beginPath(); ctx.strokeStyle = '#cbd5e1'; ctx.moveTo(s.x, s.y); ctx.lineTo(t.x, t.y); ctx.stroke();
-            });
-            nodes.forEach(n => {
-                const x = n.x - n.w/2, y = n.y - n.h/2;
-                ctx.fillStyle = 'white'; ctx.shadowBlur = 5; ctx.shadowColor = 'rgba(0,0,0,0.1)';
-                ctx.fillRect(x, y, n.w, n.h); ctx.shadowBlur = 0;
-                ctx.fillStyle = n.color; ctx.fillRect(x, y, n.w, 3);
-                ctx.fillStyle = '#1e293b'; ctx.font = 'bold 10px sans-serif'; ctx.fillText(n.label, x + 5, y + 15);
-                ctx.font = '8px sans-serif'; ctx.fillStyle = '#94a3b8';
-                n.attrs.forEach((a, i) => ctx.fillText(`${a.n}: ${a.v || '-'}`, x + 5, y + 30 + (i * 12)));
-            });
-        }
-
-        // --- Typen Management ---
-        function addAttributeRow(name = '', type = 'text') {
-            const container = document.getElementById('attributeList');
+        function addAttrRow(name='', type='text', target='') {
             const div = document.createElement('div');
-            div.className = 'flex gap-2';
+            div.className = "attr-row flex gap-2 items-center mb-2 bg-slate-50 p-1 rounded";
             div.innerHTML = `
-                <input type="text" class="input-field !mt-0 flex-1 attr-name" placeholder="Feld" value="${name}">
-                <select class="input-field !mt-0 w-24 attr-type">
+                <div class="flex flex-col">
+                    <button onclick="moveAttr(this, -1)" class="text-xs text-slate-400 hover:text-blue-500">▲</button>
+                    <button onclick="moveAttr(this, 1)" class="text-xs text-slate-400 hover:text-blue-500">▼</button>
+                </div>
+                <input type="text" class="input py-1 text-sm attr-name" placeholder="Name" value="${name}">
+                <select class="input py-1 text-sm w-24 attr-type" onchange="toggleTargetSelect(this)">
                     <option value="text" ${type==='text'?'selected':''}>Text</option>
+                    <option value="int" ${type==='int'?'selected':''}>Ganzzahl</option>
+                    <option value="decimal" ${type==='decimal'?'selected':''}>Dezimal</option>
                     <option value="link" ${type==='link'?'selected':''}>Link</option>
                 </select>
-                <button onclick="this.parentElement.remove()" class="text-red-500">&times;</button>`;
-            container.appendChild(div);
+                <select class="input py-1 text-sm w-32 attr-target ${type==='link'?'':'hidden'}">
+                    <option value="">Alle Typen</option>
+                    ${appData.types.map(t => `<option value="${t.id}" ${target===t.id?'selected':''}>${t.name}</option>`).join('')}
+                </select>
+                <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-600 px-2">×</button>
+            `;
+            document.getElementById('attrList').appendChild(div);
+        }
+
+        function toggleTargetSelect(el) {
+            const targetSelect = el.parentElement.querySelector('.attr-target');
+            targetSelect.classList.toggle('hidden', el.value !== 'link');
+        }
+
+        function moveAttr(btn, dir) {
+            const row = btn.parentElement.parentElement;
+            const parent = row.parentElement;
+            if (dir === -1 && row.previousElementSibling) parent.insertBefore(row, row.previousElementSibling);
+            if (dir === 1 && row.nextElementSibling) parent.insertBefore(row.nextElementSibling, row);
         }
 
         function saveType() {
-            const name = document.getElementById('typeName').value;
-            const attrs = Array.from(document.querySelectorAll('#attributeList > div')).map(div => ({
-                name: div.querySelector('.attr-name').value,
-                type: div.querySelector('.attr-type').value
-            }));
-            appData.types.push({ id: 't' + Date.now(), name, attributes: attrs });
-            document.getElementById('typeName').value = '';
-            document.getElementById('attributeList').innerHTML = '';
-            syncData();
-            refreshAllViews();
+            const name = document.getElementById('configTypeName').value.trim();
+            if (!name) return alert("Name fehlt");
+            const attrs = Array.from(document.querySelectorAll('.attr-row')).map(row => ({
+                name: row.querySelector('.attr-name').value,
+                type: row.querySelector('.attr-type').value,
+                targetTypeId: row.querySelector('.attr-target').value
+            })).filter(a => a.name);
+
+            const id = document.getElementById('configTypeId').value;
+            if (id) {
+                const idx = appData.types.findIndex(t => t.id === id);
+                appData.types[idx] = { id, name, attributes: attrs };
+            } else {
+                appData.types.push({ id: 't'+Date.now(), name, attributes: attrs });
+            }
+            saveData();
+            resetConfigForm();
+            renderTypesList();
         }
 
-        function renderTypes() {
-            const container = document.getElementById('typeDisplay');
-            container.innerHTML = appData.types.map(t => `
-                <div class="bg-white p-2 rounded border border-slate-200 text-sm flex justify-between">
-                    <span>${t.name} (${t.attributes.length} Felder)</span>
+        function renderTypesList() {
+            const div = document.getElementById('typesList');
+            div.innerHTML = appData.types.map(t => `
+                <div class="flex justify-between items-center bg-white border p-2 rounded text-sm">
+                    <span class="font-bold">${t.name} <span class="text-xs text-slate-400 font-normal">(${t.attributes.length} Attr.)</span></span>
+                    <div>
+                        <button onclick="editType('${t.id}')" class="text-blue-500 mr-2">Edit</button>
+                        <button onclick="deleteType('${t.id}')" class="text-red-500">Löschen</button>
+                    </div>
                 </div>
             `).join('');
         }
 
-        window.onload = loadData;
+        function editType(id) {
+            const t = getType(id);
+            document.getElementById('configTypeId').value = t.id;
+            document.getElementById('configTypeName').value = t.name;
+            document.getElementById('attrList').innerHTML = '';
+            t.attributes.forEach(a => addAttrRow(a.name, a.type, a.targetTypeId));
+            document.getElementById('cancelConfigBtn').style.display = 'inline-block';
+        }
+
+        function resetConfigForm() {
+            document.getElementById('configTypeId').value = '';
+            document.getElementById('configTypeName').value = '';
+            document.getElementById('attrList').innerHTML = '';
+            document.getElementById('cancelConfigBtn').style.display = 'none';
+            addAttrRow();
+        }
+
+        function deleteType(id) {
+            if(confirm("Typ und alle zugehörigen Entitäten löschen?")) {
+                appData.types = appData.types.filter(t => t.id !== id);
+                appData.entities = appData.entities.filter(e => e.typeId !== id);
+                saveData();
+                renderTypesList();
+            }
+        }
+
+        // --- Entity Logic (Forms) ---
+        function updateSelects() {
+            const opts = '<option value="">-- Wählen --</option>' + appData.types.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            
+            // For Form
+            const entSel = document.getElementById('entityTypeSelect');
+            const entVal = entSel.value;
+            entSel.innerHTML = opts;
+            if(appData.types.find(t=>t.id===entVal)) entSel.value = entVal;
+
+            // For Table
+            const tblSel = document.getElementById('tableTypeSelect');
+            const tblVal = tblSel.value;
+            tblSel.innerHTML = opts;
+            if(appData.types.find(t=>t.id===tblVal)) tblSel.value = tblVal;
+        }
+
+        function renderEntityFormFields(vals = {}) {
+            const tid = document.getElementById('entityTypeSelect').value;
+            const container = document.getElementById('entityFormFields');
+            container.innerHTML = '';
+            
+            const type = getType(tid);
+            if (!type) return;
+
+            type.attributes.forEach(attr => {
+                const label = document.createElement('label');
+                label.className = "block text-xs font-bold text-slate-500 uppercase mt-2 mb-1";
+                label.innerText = attr.name;
+                
+                let input;
+                if (attr.type === 'link') {
+                    input = document.createElement('select');
+                    input.className = "input entity-input";
+                    input.innerHTML = '<option value="">-- Leer --</option>';
+                    const targets = appData.entities.filter(e => !attr.targetTypeId || e.typeId === attr.targetTypeId);
+                    targets.forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t.id;
+                        opt.innerText = getEntityLabel(t.id, true);
+                        if(vals[attr.name] === t.id) opt.selected = true;
+                        input.appendChild(opt);
+                    });
+                } else {
+                    input = document.createElement('input');
+                    input.type = (attr.type === 'int' || attr.type === 'decimal') ? 'number' : 'text';
+                    input.className = "input entity-input";
+                    input.value = vals[attr.name] || '';
+                    if (attr.type === 'decimal') input.step = '0.01';
+                }
+                input.dataset.attr = attr.name;
+                input.dataset.type = attr.type;
+                
+                container.appendChild(label);
+                container.appendChild(input);
+            });
+        }
+
+        function saveEntity() {
+            const tid = document.getElementById('entityTypeSelect').value;
+            if(!tid) return alert("Typ wählen");
+            
+            const values = {};
+            document.querySelectorAll('.entity-input').forEach(el => {
+                let v = el.value;
+                if(el.dataset.type === 'int') v = parseInt(v) || 0;
+                else if(el.dataset.type === 'decimal') v = parseFloat(v) || 0.0;
+                values[el.dataset.attr] = v;
+            });
+
+            const id = document.getElementById('editEntityId').value;
+            if(id) {
+                const idx = appData.entities.findIndex(e => e.id === id);
+                appData.entities[idx].values = values;
+            } else {
+                appData.entities.push({ id: 'e'+Date.now(), typeId: tid, values });
+            }
+            saveData();
+            resetEntityForm();
+            refreshAll();
+        }
+
+        function resetEntityForm() {
+            document.getElementById('editEntityId').value = '';
+            document.getElementById('entityTypeSelect').disabled = false;
+            document.getElementById('entityTypeSelect').value = '';
+            document.getElementById('entityFormFields').innerHTML = '';
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+        }
+
+        function editEntity(id) {
+            switchTab('cards');
+            const e = appData.entities.find(x => x.id === id);
+            document.getElementById('editEntityId').value = e.id;
+            document.getElementById('entityTypeSelect').value = e.typeId;
+            document.getElementById('entityTypeSelect').disabled = true;
+            renderEntityFormFields(e.values);
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+            window.scrollTo(0,0);
+        }
+
+        function deleteEntity(id) {
+            if(confirm("Wirklich löschen?")) {
+                appData.entities = appData.entities.filter(e => e.id !== id);
+                saveData();
+                refreshAll();
+            }
+        }
+
+        // --- Card View ---
+        function renderCards() {
+            const container = document.getElementById('cardsContainer');
+            const search = document.getElementById('cardSearch').value.toLowerCase();
+            
+            container.innerHTML = appData.entities
+                .filter(e => {
+                    const l = getEntityLabel(e.id).toLowerCase();
+                    return l.includes(search);
+                })
+                .map(e => {
+                    const type = getType(e.typeId);
+                    const typeIdx = appData.types.findIndex(t => t.id === e.typeId);
+                    const color = TYPE_COLORS[typeIdx % TYPE_COLORS.length];
+                    
+                    const backlinks = getBacklinks(e.id);
+                    
+                    return `
+                    <div class="card p-4 border-l-4" style="border-left-color: ${color}" id="ent-${e.id}">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-[10px] font-bold uppercase text-slate-400">${type.name}</span>
+                                <h3 class="font-bold text-lg mb-2">${getEntityLabel(e.id)}</h3>
+                            </div>
+                            <div class="flex gap-1">
+                                <button onclick="editEntity('${e.id}')" class="text-blue-500 hover:bg-blue-50 p-1 rounded">✏️</button>
+                                <button onclick="deleteEntity('${e.id}')" class="text-red-500 hover:bg-red-50 p-1 rounded">🗑</button>
+                            </div>
+                        </div>
+                        <div class="space-y-1 text-sm mb-3">
+                            ${type.attributes.map(a => {
+                                let val = e.values[a.name];
+                                if(a.type === 'link' && val) {
+                                    val = `<a href="#" onclick="focusEntity('${val}')" class="text-blue-600 hover:underline">🔗 ${getEntityLabel(val)}</a>`;
+                                }
+                                return `<div class="flex"><span class="w-1/3 text-slate-500 text-xs font-semibold">${a.name}:</span><span class="w-2/3 truncate">${val || '-'}</span></div>`;
+                            }).join('')}
+                        </div>
+                        ${backlinks.length > 0 ? `
+                        <div class="border-t pt-2 mt-2">
+                            <span class="text-[10px] font-bold text-slate-400">VERLINKT IN:</span>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                ${backlinks.map(b => `<span onclick="focusEntity('${b.id}')" class="cursor-pointer text-[10px] bg-slate-100 px-1 py-0.5 rounded hover:bg-blue-100 border border-slate-200">${getEntityLabel(b.id)}</span>`).join('')}
+                            </div>
+                        </div>` : ''}
+                    </div>`;
+                }).join('');
+        }
+
+        function focusEntity(id) {
+            switchTab('cards');
+            setTimeout(() => {
+                const el = document.getElementById('ent-' + id);
+                if(el) {
+                    el.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    el.classList.add('highlight-target');
+                    setTimeout(() => el.classList.remove('highlight-target'), 1500);
+                }
+            }, 100);
+        }
+
+        // --- Table View ---
+        function renderTable() {
+            const tid = document.getElementById('tableTypeSelect').value;
+            const container = document.getElementById('tableContainer');
+            const quickRow = document.getElementById('quickAddRow');
+            
+            if (!tid) {
+                container.innerHTML = `<div class="p-10 text-center text-slate-400">Bitte einen Typ auswählen.</div>`;
+                quickRow.classList.add('hidden');
+                return;
+            }
+            quickRow.classList.remove('hidden');
+
+            const type = getType(tid);
+            const ents = appData.entities.filter(e => e.typeId === tid);
+
+            // Table Header
+            let html = `<table class="data-table"><thead><tr>`;
+            type.attributes.forEach(a => html += `<th>${a.name}</th>`);
+            html += `<th>Backlinks</th><th class="w-10"></th></tr></thead><tbody>`;
+
+            // Rows
+            ents.forEach(e => {
+                html += `<tr>`;
+                type.attributes.forEach(a => {
+                    let val = e.values[a.name];
+                    let display = val || '';
+                    if (a.type === 'link' && val) display = `🔗 ${getEntityLabel(val)}`;
+                    // Inline Edit Cell
+                    html += `<td onclick="editInline(this, '${e.id}', '${a.name}', '${a.type}', '${a.targetTypeId || ''}')" class="cursor-pointer hover:bg-blue-50">${display || '<span class="text-slate-300 italic">-</span>'}</td>`;
+                });
+                
+                const bl = getBacklinks(e.id);
+                html += `<td>${bl.length}</td>`;
+                html += `<td><button onclick="deleteEntity('${e.id}')" class="text-red-400">🗑</button></td></tr>`;
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+
+            // Render Quick Add Inputs
+            const qaDiv = document.getElementById('quickAddInputs');
+            qaDiv.innerHTML = type.attributes.map(a => {
+                if (a.type === 'link') {
+                    const targets = appData.entities.filter(e => !a.targetTypeId || e.typeId === a.targetTypeId);
+                    return `<div class="min-w-[120px]"><div class="text-[10px] text-slate-400 font-bold mb-1">${a.name}</div>
+                    <select id="qa-${a.name}" class="input py-1 text-sm"><option value="">--</option>${targets.map(t => `<option value="${t.id}">${getEntityLabel(t.id)}</option>`).join('')}</select></div>`;
+                }
+                return `<div class="min-w-[120px]"><div class="text-[10px] text-slate-400 font-bold mb-1">${a.name}</div>
+                <input id="qa-${a.name}" type="${a.type==='int'?'number':'text'}" class="input py-1 text-sm" placeholder="..."></div>`;
+            }).join('');
+        }
+
+        function editInline(td, id, attrName, type, targetType) {
+            if (td.querySelector('input, select')) return; // Already editing
+            
+            const ent = appData.entities.find(e => e.id === id);
+            const currentVal = ent.values[attrName];
+            
+            let input;
+            if (type === 'link') {
+                input = document.createElement('select');
+                input.className = "inline-input";
+                const targets = appData.entities.filter(e => !targetType || e.typeId === targetType);
+                input.innerHTML = `<option value="">--</option>` + targets.map(t => `<option value="${t.id}" ${currentVal===t.id?'selected':''}>${getEntityLabel(t.id)}</option>`).join('');
+            } else {
+                input = document.createElement('input');
+                input.className = "inline-input";
+                input.type = (type === 'int' || type === 'decimal') ? 'number' : 'text';
+                input.value = currentVal || '';
+            }
+
+            td.innerHTML = '';
+            td.appendChild(input);
+            input.focus();
+
+            const save = () => {
+                let val = input.value;
+                if (type === 'int') val = parseInt(val);
+                if (type === 'decimal') val = parseFloat(val);
+                ent.values[attrName] = val;
+                saveData();
+                renderTable(); // Re-render to show plain text
+            };
+
+            input.onblur = save;
+            input.onkeydown = (e) => { if(e.key === 'Enter') { input.blur(); } };
+        }
+
+        function quickAddEntity() {
+            const tid = document.getElementById('tableTypeSelect').value;
+            const type = getType(tid);
+            const values = {};
+            
+            type.attributes.forEach(a => {
+                const el = document.getElementById(`qa-${a.name}`);
+                let val = el.value;
+                if(a.type === 'int') val = parseInt(val) || 0;
+                if(a.type === 'decimal') val = parseFloat(val) || 0.0;
+                values[a.name] = val;
+                el.value = ''; // Reset input
+            });
+
+            appData.entities.push({ id: 'e'+Date.now(), typeId: tid, values });
+            saveData();
+            renderTable();
+        }
+
+        // --- Graph / Mindmap View ---
+        let canvas, ctx, animationId;
+        let nodes = [], links = [];
+        let draggedNode = null;
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('section').forEach(el => el.classList.add('hidden'));
+            document.getElementById('view-' + tab).classList.remove('hidden');
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            
+            if (tab === 'graph') initGraph();
+            else if (animationId) cancelAnimationFrame(animationId);
+            
+            refreshAll();
+        }
+
+        function initGraph() {
+            canvas = document.getElementById('graphCanvas');
+            const parent = canvas.parentElement;
+            canvas.width = parent.clientWidth;
+            canvas.height = parent.clientHeight;
+            ctx = canvas.getContext('2d');
+
+            canvas.onmousedown = graphMouseDown;
+            canvas.onmousemove = graphMouseMove;
+            window.onmouseup = graphMouseUp;
+
+            // Prepare Data
+            nodes = appData.entities.map(e => {
+                const type = getType(e.typeId);
+                const typeIdx = appData.types.findIndex(t => t.id === e.typeId);
+                
+                // Content for the card
+                const title = getEntityLabel(e.id, false);
+                const attrLines = type.attributes.map(a => {
+                    let v = e.values[a.name];
+                    if (a.type === 'link' && v) v = getEntityLabel(v, false);
+                    return `${a.name}: ${v || '-'}`;
+                });
+
+                return {
+                    id: e.id,
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: 0, vy: 0,
+                    w: 160, h: 40 + (attrLines.length * 14),
+                    color: TYPE_COLORS[typeIdx % TYPE_COLORS.length],
+                    type: type.name,
+                    title: title,
+                    lines: attrLines
+                };
+            });
+
+            links = [];
+            appData.entities.forEach(e => {
+                const type = getType(e.typeId);
+                type.attributes.forEach(a => {
+                    if (a.type === 'link' && e.values[a.name]) {
+                        // Find target
+                        const target = appData.entities.find(t => t.id === e.values[a.name]);
+                        if (target) links.push({ source: e.id, target: target.id });
+                    }
+                });
+            });
+
+            if (animationId) cancelAnimationFrame(animationId);
+            animateGraph();
+        }
+
+        function animateGraph() {
+            // Physics
+            const kRep = 5000;
+            const kSpring = 0.05;
+            
+            // Repulsion
+            for (let i=0; i<nodes.length; i++) {
+                for (let j=i+1; j<nodes.length; j++) {
+                    const dx = nodes[j].x - nodes[i].x;
+                    const dy = nodes[j].y - nodes[i].y;
+                    const d2 = dx*dx + dy*dy || 1;
+                    const f = kRep / d2;
+                    const dist = Math.sqrt(d2);
+                    const fx = (dx/dist) * f;
+                    const fy = (dy/dist) * f;
+                    nodes[i].vx -= fx; nodes[i].vy -= fy;
+                    nodes[j].vx += fx; nodes[j].vy += fy;
+                }
+            }
+
+            // Springs
+            links.forEach(l => {
+                const s = nodes.find(n => n.id === l.source);
+                const t = nodes.find(n => n.id === l.target);
+                if (s && t) {
+                    const dx = t.x - s.x;
+                    const dy = t.y - s.y;
+                    const d = Math.sqrt(dx*dx + dy*dy) || 1;
+                    const f = (d - 200) * kSpring;
+                    const fx = (dx/d) * f;
+                    const fy = (dy/d) * f;
+                    s.vx += fx; s.vy += fy;
+                    t.vx -= fx; t.vy -= fy;
+                }
+            });
+
+            // Update & Draw
+            ctx.clearRect(0,0, canvas.width, canvas.height);
+            
+            // Draw Lines (Left In, Right Out logic implies source right -> target left)
+            links.forEach(l => {
+                const s = nodes.find(n => n.id === l.source);
+                const t = nodes.find(n => n.id === l.target);
+                if (s && t) {
+                    const sx = s.x + s.w/2; 
+                    const sy = s.y;
+                    const tx = t.x - t.w/2;
+                    const ty = t.y;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(sx, sy);
+                    // Bezier for nicer curves
+                    ctx.bezierCurveTo(sx + 50, sy, tx - 50, ty, tx, ty);
+                    ctx.strokeStyle = '#94a3b8';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // Arrow head
+                    ctx.beginPath();
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.moveTo(tx, ty);
+                    ctx.lineTo(tx - 10, ty - 5);
+                    ctx.lineTo(tx - 10, ty + 5);
+                    ctx.fill();
+                }
+            });
+
+            nodes.forEach(n => {
+                if (n !== draggedNode) {
+                    // Center gravity weak
+                    n.vx += (canvas.width/2 - n.x) * 0.002;
+                    n.vy += (canvas.height/2 - n.y) * 0.002;
+                    
+                    n.x += n.vx; n.y += n.vy;
+                    n.vx *= 0.9; n.vy *= 0.9;
+                }
+
+                // Draw Card
+                const x = n.x - n.w/2;
+                const y = n.y - n.h/2;
+                
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                ctx.fillRect(x+3, y+3, n.w, n.h);
+
+                // Body
+                ctx.fillStyle = 'white';
+                ctx.fillRect(x, y, n.w, n.h);
+                
+                // Header (Type Color)
+                ctx.fillStyle = n.color;
+                ctx.fillRect(x, y, n.w, 4);
+
+                // Border
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.strokeRect(x, y, n.w, n.h);
+
+                // Text
+                ctx.fillStyle = n.color;
+                ctx.font = 'bold 10px sans-serif';
+                ctx.fillText(n.type.toUpperCase(), x + 8, y + 18);
+
+                ctx.fillStyle = '#1e293b';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText(n.title, x + 8, y + 34);
+
+                ctx.fillStyle = '#64748b';
+                ctx.font = '10px sans-serif';
+                n.lines.forEach((line, idx) => {
+                    ctx.fillText(line, x + 8, y + 50 + (idx * 14));
+                });
+            });
+
+            animationId = requestAnimationFrame(animateGraph);
+        }
+
+        function graphMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            draggedNode = nodes.find(n => 
+                mx >= n.x - n.w/2 && mx <= n.x + n.w/2 &&
+                my >= n.y - n.h/2 && my <= n.y + n.h/2
+            );
+        }
+        function graphMouseMove(e) {
+            if (draggedNode) {
+                const rect = canvas.getBoundingClientRect();
+                draggedNode.x = e.clientX - rect.left;
+                draggedNode.y = e.clientY - rect.top;
+            }
+        }
+        function graphMouseUp() { draggedNode = null; }
+
+        // Import/Export
+        function exportData() {
+            const blob = new Blob([JSON.stringify(appData, null, 2)], {type: 'application/json'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'entity_data.json';
+            a.click();
+        }
+        function importData(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                try {
+                    appData = JSON.parse(evt.target.result);
+                    saveData();
+                    refreshAll();
+                    alert("Import erfolgreich!");
+                } catch(err) { alert("Fehler beim Import"); }
+            };
+            reader.readAsText(file);
+        }
+
+        // Init
+        loadData();
     </script>
 </body>
 </html>
