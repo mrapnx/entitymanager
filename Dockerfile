@@ -1,21 +1,41 @@
-# Basis Image
-FROM node:18-alpine
+# ---- Base Stage ----
 
-# Verzeichnis
+FROM node:20-slim AS base
 WORKDIR /app
+COPY package*.json ./
+# ---- Dependencies Stage ----
 
-# Dependencies
-RUN npm init -y && npm install express
+FROM base AS dependencies
+# Use npm ci for clean, reproducible builds from package-lock.json
 
-# Files
-COPY server.js .
-COPY entity_manager.html .
+RUN npm ci --only=production
+# ---- Production Stage ----
 
-# Data Volume Ordner
-RUN mkdir -p /app/data
+FROM node:20-slim AS production
+WORKDIR /app
+Copy built dependencies from the dependencies stage
 
-# Port
+COPY --from=dependencies /app/node_modules ./node_modules
+Copy application source code
+
+COPY . .
+# Create a non-root user and group for security
+
+RUN addgroup --system --gid 1001 nodejs &&
+adduser --system --uid 1001 node
+# Create the data directory and ensure the 'node' user has ownership. This is crucial for the volume mount to work correctly, allowing server.js to write the db.json file.
+
+RUN mkdir -p /app/data &&
+chown -R node:nodejs /app/data
+# Switch to the non-root user
+
+USER node
+# Expose the port the app runs on
+
 EXPOSE 3000
+# Set Node.js environment to production
 
-# Start
+ENV NODE_ENV=production
+# The command to run the application
+
 CMD ["node", "server.js"]
