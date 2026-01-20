@@ -1,0 +1,71 @@
+Bitte erstelle eine Web-Anwendung zur Verwaltung dynamischer Datenstrukturen. Die Anwendung besteht aus einem Frontend (Single-File HTML/JS mit Tailwind CSS) und einem leichtgewichtigen Backend (Node.js), containerisiert via Docker.
+
+1. Technischer Stack
+
+    Frontend: Eine einzige HTML-Datei (entity_manager.html), die HTML, Tailwind CSS (via CDN) und Vanilla JavaScript enthält. Keine Build-Tools.
+
+    Backend: Ein einfacher Node.js Express Server (server.js), der eine lokale JSON-Datei als Datenbank nutzt.
+
+    Deployment: Ein Dockerfile und eine docker-compose.yml für den Betrieb.
+
+2. Datenmodell
+
+    Typen: Der Nutzer kann "Typen" definieren (z.B. "Projekt", "Mitarbeiter"). Ein Typ besteht aus einem Namen und einer Liste von Attributen. Die Typen können erstellt, bearbeitet und gelöscht werden (CRUD).
+
+    Attribute: Verfügbare Datentypen: Text, Ganzzahl, Dezimalzahl und Link (Verknüpfung zu einer anderen Entität mit optionalen Filter auf Entitäten eines bestimmten Typs).
+
+    Entitäten: Instanzen eines Typs, die konkrete Werte für die definierten Attribute speichern. Die Entitäten können erstellt, bearbeitet und gelöscht werden (CRUD).
+
+3. Kern-Funktionalitäten (Frontend)
+
+    Konfiguration (Modal):
+
+        Verwaltung der Typen und ihrer Attribute.
+
+        Möglichkeit, die Reihenfolge der Attribute per Drag-and-Drop oder Pfeiltasten zu ändern. Diese Reihenfolge muss in allen Ansichten (Karten, Tabelle, Graph) respektiert werden.
+
+        JSON Import/Export Funktion für Client-seitige Backups.
+
+    Ansicht 1: Karten (Entities)
+
+        Darstellung der Entitäten als Karten.
+
+        Formular zum Erstellen und Bearbeiten von Entitäten.
+
+        Bei Attributen vom Typ "Link" soll ein Dropdown aller verfügbaren Entitäten angezeigt werden (Anzeigeformat: "Typ: Name").
+        
+        Anzeige von Rückverweisen (Backlinks): Welche anderen Entitäten verlinken auf diese Zeile?
+
+        Klickbare Links: Ein Klick auf eine verlinkte Entität springt zu dieser und hebt sie hervor.
+
+    Ansicht 2: Tabelle (Listen)
+
+        Tabellarische Auflistung aller Entitäten eines gewählten Typs.
+
+        Inline-Editing: Werte sollen direkt durch Anklicken in der Zelle bearbeitbar sein (Input bei Text/Zahl, Dropdown bei Links).
+
+        Quick-Add: Eine Zeile unter der Tabelle zum schnellen Hinzufügen neuer Datensätze.
+
+        Anzeige von Rückverweisen (Backlinks): Welche anderen Entitäten verlinken auf diese Zeile?
+
+    Ansicht 3: Graph (Mindmap)
+
+        Visualisierung aller Entitäten und ihrer Beziehungen auf einem HTML5 Canvas.
+
+        Knoten-Design: Die Knoten sollen nicht nur Punkte sein, sondern kleine Karten, die den Typ, den Namen und alle Attribute (inkl. Werten) anzeigen. Vorbild ist hier die Karten-Ansicht.
+
+        Verknüpfung: Verknüpfte Karten sollen durch Pfeile verbunden dargestellt werden: Links auf die Entität werden links von der Karte dargestellt, Links von der Entität auf eine andere Entität rechts von der Karte.
+
+4. Backend & Persistenz
+
+    API: Der Node.js Server stellt Endpunkte bereit (GET /api/data, POST /api/save), um den gesamten Anwendungszustand zu lesen und zu schreiben.
+
+    Speicherung: Die Daten werden in einer Datei db.json gespeichert.
+
+    Synchronisierung: Das Frontend muss Änderungen (Erstellen, Editieren, Löschen, Konfigurationsänderungen) sofort an das Backend senden und die Ansichten aktualisieren.
+
+5. Containerisierung (Docker)
+
+    Erstelle ein Dockerfile auf Basis von node:alpine.
+
+    Erstelle eine docker-compose.yml, die den Server startet und das Datenverzeichnis (./data) per Bind-Mount einbindet, damit die Datenbank (db.json) auf dem Host-System persistent gespeichert wird.
