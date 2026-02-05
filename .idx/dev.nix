@@ -3,26 +3,21 @@
   packages = [
     pkgs.nodejs_20
   ];
-  env = {
-    PORT = "3000";
-  };
   idx = {
     extensions = [
       "google.gemini-cli-vscode-ide-companion"
     ];
     workspace = {
       onCreate = {
+        "npm-install" = "npm install";
       };
-      onStart = {
-        npm-install = "npm install";
-        start-server = "npm start";
-      };
+      onStart = {};
     };
     previews = {
       enable = true;
       previews = {
         web = {
-          command = ["npm" "start"];
+          command = ["sh" "-c" "PORT=$PORT node src/index.js"];
           manager = "web";
         };
       };
