@@ -1,70 +1,74 @@
-window.renderTable = (data) => {
+window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
+    const tableContainer = document.querySelector('#table-view .table-container');
     const typeSelect = document.getElementById('type-select');
-    const tableContainer = document.querySelector('.table-container');
-    const types = data.data.types.type || [];
-    const entities = data.data.entities.entity || [];
 
-    typeSelect.innerHTML = types.map(t => `<option value="${t.name._text}">${t.name._text}</option>`).join('');
+    const selectedTypeId = typeSelect.value || (data.types[0]?.id || '');
 
-    const render = () => {
-        const selectedType = typeSelect.value;
-        const type = types.find(t => t.name._text === selectedType);
-        if (!type) {
-            tableContainer.innerHTML = '';
-            return;
-        }
+    // Populate the type selector dropdown
+    typeSelect.innerHTML = data.types.map(t => `<option value="${t.id}" ${t.id === selectedTypeId ? 'selected' : ''}>${t.name}</option>`).join('');
 
-        let headers = type.attributes.attribute ? (Array.isArray(type.attributes.attribute) ? type.attributes.attribute.map(a => a.name._text) : [type.attributes.attribute.name._text]) : [];
-        headers = ['id', 'type', ...headers];
+    const selectedType = data.types.find(t => t.id === selectedTypeId);
+    const entities = data.entities.filter(e => e.typeId === selectedTypeId);
 
-        let tableHtml = `<table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}<th>Actions</th></tr></thead><tbody>`;
+    if (!selectedType) {
+        tableContainer.innerHTML = '<p>Please select a type to view entities.</p>';
+        return;
+    }
 
-        const filteredEntities = entities.filter(e => e.type._text === selectedType);
+    // --- Table Header ---
+    const headers = ['Name', ...selectedType.attributes.map(attr => attr.name), 'Actions'];
+    let tableHTML = '<table class="entity-table">';
+    tableHTML += '<thead><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead>';
 
-        filteredEntities.forEach(entity => {
-            tableHtml += `<tr>`;
-            headers.forEach(header => {
-                const value = entity[header] ? entity[header]._text : (entity._attributes && header === 'id' ? entity._attributes.id : 'N/A');
-                tableHtml += `<td data-id="${entity._attributes.id}" data-field="${header}">${value}</td>`;
-            });
-            tableHtml += `<td><button class="delete-btn" data-id="${entity._attributes.id}">🗑</button></td>`;
-            tableHtml += `</tr>`;
+    // --- Table Body ---
+    tableHTML += '<tbody>';
+    entities.forEach(entity => {
+        tableHTML += `<tr>`;
+        tableHTML += `<td>${entity.name}</td>`;
+        
+        selectedType.attributes.forEach(attr => {
+            const value = entity.attributes[attr.name] || '';
+            let cellValue = value;
+            if (attr.type === 'Link') {
+                const linkedEntity = data.entities.find(e => e.id === value);
+                if(linkedEntity) {
+                    const linkedType = data.types.find(t => t.id === linkedEntity.typeId);
+                    cellValue = `${linkedType ? linkedType.name : 'Unknown'}: ${linkedEntity.name}`;
+                } else {
+                    cellValue = 'None';
+                }
+            }
+            tableHTML += `<td>${cellValue}</td>`;
         });
 
-        tableHtml += `</tbody></table>`;
-        tableContainer.innerHTML = tableHtml;
-    };
+        tableHTML += `
+            <td class="actions">
+                <button class="edit-entity-btn" data-id="${entity.id}">Edit</button>
+                <button class="delete-entity-btn" data-id="${entity.id}">Delete</button>
+            </td>
+        `;
+        tableHTML += `</tr>`;
+    });
+    tableHTML += '</tbody></table>';
 
-    typeSelect.addEventListener('change', render);
-    render();
+    tableContainer.innerHTML = tableHTML;
 
-    tableContainer.addEventListener('click', async (e) => {
-        if (e.target.classList.contains('delete-btn')) {
-            const entityId = e.target.dataset.id;
-            await fetch(`/api/entities/${entityId}`, { method: 'DELETE' });
-            window.location.reload();
-        } else if (e.target.tagName === 'TD') {
-            const td = e.target;
-            const oldValue = td.innerText;
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.value = oldValue;
-            td.innerHTML = '';
-            td.appendChild(input);
-            input.focus();
+    // --- Event Listeners ---
+    typeSelect.onchange = () => renderCurrentView();
 
-            input.addEventListener('blur', async () => {
-                const newValue = input.value;
-                td.innerText = newValue;
-                const entityId = td.dataset.id;
-                const field = td.dataset.field;
-                const body = { [field]: { _text: newValue } };
-                await fetch(`/api/entities/${entityId}`, { 
-                    method: 'PUT', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify(body) 
-                });
-            });
+    tableContainer.addEventListener('click', async (event) => {
+        const target = event.target;
+
+        if (target.classList.contains('edit-entity-btn')) {
+            openNewEntityModal(target.dataset.id);
+        }
+
+        if (target.classList.contains('delete-entity-btn')) {
+            const entityIdToDelete = target.dataset.id;
+            if (confirm('Are you sure you want to delete this entity?')) {
+                await fetch(`/api/entities/${entityIdToDelete}`, { method: 'DELETE' });
+                renderCurrentView();
+            }
         }
     });
 };

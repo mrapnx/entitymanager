@@ -1,97 +1,97 @@
-window.renderMindmap = (data) => {
+window.renderMindmap = ({ data, openEntity }) => {
     const canvas = document.getElementById('mindmap-canvas');
     const ctx = canvas.getContext('2d');
-    const entities = data.data.entities.entity || [];
-    const types = data.data.types.type || [];
 
-    // Basic node setup
-    let nodes = entities.map((entity, i) => ({
-        id: entity._attributes.id,
-        label: entity.title ? entity.title._text : 'No Title',
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        width: 150,
-        height: 100,
-        vx: 0,
-        vy: 0
-    }));
+    // Basic canvas setup
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!data.entities || data.entities.length === 0) {
+        ctx.font = '16px Arial';
+        ctx.fillStyle = '#666';
+        ctx.textAlign = 'center';
+        ctx.fillText('No entities to display in the mindmap.', canvas.width / 2, canvas.height / 2);
+        return;
+    }
 
-        // Draw links
-        entities.forEach(entity => {
-            const type = types.find(t => t.name._text === entity.type._text);
-            if (!type || !type.attributes || !type.attributes.attribute) return;
-            if (!Array.isArray(type.attributes.attribute)) type.attributes.attribute = [type.attributes.attribute];
+    const nodes = [];
+    const edges = [];
 
-            type.attributes.attribute.forEach(attr => {
-                if (attr.dataType._text === 'link' && entity[attr.name._text]) {
-                    const targetId = entity[attr.name._text]._text;
-                    const sourceNode = nodes.find(n => n.id === entity._attributes.id);
-                    const targetNode = nodes.find(n => n.id === targetId);
-                    if (sourceNode && targetNode) {
-                        ctx.beginPath();
-                        ctx.moveTo(sourceNode.x + sourceNode.width / 2, sourceNode.y + sourceNode.height / 2);
-                        ctx.lineTo(targetNode.x + targetNode.width / 2, targetNode.y + targetNode.height / 2);
-                        ctx.stroke();
+    // --- Node and Edge Creation ---
+    data.entities.forEach(entity => {
+        nodes.push({ id: entity.id, label: entity.name, x: 0, y: 0, radius: 40 });
+        const type = data.types.find(t => t.id === entity.typeId);
+        if (type) {
+            type.attributes.forEach(attr => {
+                if (attr.type === 'Link') {
+                    const linkedEntityId = entity.attributes[attr.name];
+                    if (linkedEntityId && data.entities.some(e => e.id === linkedEntityId)) {
+                        edges.push({ from: entity.id, to: linkedEntityId });
                     }
                 }
             });
-        });
+        }
+    });
 
-        // Draw nodes
-        nodes.forEach(node => {
-            ctx.fillStyle = 'white';
-            ctx.fillRect(node.x, node.y, node.width, node.height);
-            ctx.strokeStyle = '#4a90e2';
-            ctx.strokeRect(node.x, node.y, node.width, node.height);
+    // --- Simple Circular Layout ---
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.min(centerX, centerY) * 0.8;
+    const angleStep = (2 * Math.PI) / nodes.length;
 
-            ctx.fillStyle = 'black';
-            ctx.font = '16px Arial';
-            ctx.fillText(node.label, node.x + 10, node.y + 20);
+    nodes.forEach((node, i) => {
+        node.x = centerX + radius * Math.cos(i * angleStep);
+        node.y = centerY + radius * Math.sin(i * angleStep);
+    });
 
-            // Draw buttons
-            ctx.font = '20px Arial';
-            ctx.fillText('✎', node.x + node.width - 50, node.y + 20);
-            ctx.fillText('🗑', node.x + node.width - 25, node.y + 20);
-        });
-    }
+    const nodeMap = new Map(nodes.map(node => [node.id, node]));
 
-    function update() {
-        // Simple force-directed layout
-        nodes.forEach(node1 => {
-            nodes.forEach(node2 => {
-                if (node1 === node2) return;
-                const dx = node2.x - node1.x;
-                const dy = node2.y - node1.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < 200) {
-                    const force = -0.5;
-                    node1.vx += force * (dx / distance);
-                    node1.vy += force * (dy / distance);
-                }
-            });
-        });
+    // --- Drawing ---
+    // Draw edges
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 2;
+    edges.forEach(edge => {
+        const fromNode = nodeMap.get(edge.from);
+        const toNode = nodeMap.get(edge.to);
+        if (fromNode && toNode) {
+            ctx.beginPath();
+            ctx.moveTo(fromNode.x, fromNode.y);
+            ctx.lineTo(toNode.x, toNode.y);
+            ctx.stroke();
+        }
+    });
 
-        nodes.forEach(node => {
-            node.x += node.vx;
-            node.y += node.vy;
+    // Draw nodes
+    nodes.forEach(node => {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI);
+        ctx.fillStyle = '#1877f2';
+        ctx.fill();
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 3;
+        ctx.stroke();
 
-            // Dampening
-            node.vx *= 0.9;
-            node.vy *= 0.9;
+        // Draw label
+        ctx.fillStyle = 'white';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(node.label, node.x, node.y);
+    });
 
-            // Boundary collision
-            if (node.x < 0) node.x = 0;
-            if (node.y < 0) node.y = 0;
-            if (node.x + node.width > canvas.width) node.x = canvas.width - node.width;
-            if (node.y + node.height > canvas.height) node.y = canvas.height - node.height;
-        });
+    // --- Click Handler ---
+    canvas.onclick = (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
 
-        draw();
-        requestAnimationFrame(update);
-    }
-
-    update();
+        for (const node of nodes) {
+            const distance = Math.sqrt((x - node.x) ** 2 + (y - node.y) ** 2);
+            if (distance < node.radius) {
+                openEntity(node.id);
+                break;
+            }
+        }
+    };
 };
