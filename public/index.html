@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Entity Manager v4</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Dynamic Entity Manager v4</h1>
+            <nav>
+                <button id="cards-view-btn" class="active">Karten</button>
+                <button id="table-view-btn">Tabelle</button>
+                <button id="mindmap-view-btn">Mindmap</button>
+            </nav>
+        </header>
+        <main>
+            <div id="cards-view" class="view active">
+                <div class="cards-container"></div>
+            </div>
+            <div id="table-view" class="view">
+                <div class="controls">
+                    <select id="type-select"></select>
+                </div>
+                <div class="table-container"></div>
+            </div>
+            <div id="mindmap-view" class="view">
+                <canvas id="mindmap-canvas"></canvas>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script src="js/views/cards.js"></script>
+    <script src="js/views/table.js"></script>
+    <script src="js/views/mindmap.js"></script>
+</body>
+</html>
