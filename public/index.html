@@ -3,18 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Entity Manager v4</title>
+    <title>Dynamic Entity Manager v5</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js" integrity="sha512-Eezs+g9Lq4TCCq0wae01s97wKTRbab8SR/7SA0JNPfi/iSbMCHcKNah5GIzSohgrFm+9iy6K+kARuy/3Q49smg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Dynamic Entity Manager v4</h1>
-            <nav>
-                <button id="cards-view-btn" class="active">Karten</button>
-                <button id="table-view-btn">Tabelle</button>
-                <button id="mindmap-view-btn">Mindmap</button>
-            </nav>
+            <h1>Dynamic Entity Manager v5</h1>
+            <div class="header-controls">
+                <nav>
+                    <button id="cards-view-btn" class="active">Karten</button>
+                    <button id="table-view-btn">Tabelle</button>
+                    <button id="mindmap-view-btn">Mindmap</button>
+                </nav>
+                <div class="separator"></div>
+                <button id="new-entity-btn">+ New Entity</button>
+                <button id="config-btn">Configuration</button>
+            </div>
         </header>
         <main>
             <div id="cards-view" class="view active">
@@ -30,6 +36,36 @@
                 <canvas id="mindmap-canvas"></canvas>
             </div>
         </main>
+    </div>
+
+    <div id="config-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Configuration</h2>
+            <div id="type-management">
+                <!-- Type items will be rendered here by JavaScript -->
+            </div>
+            <div id="new-type-form-container" style="display: none; margin-top: 10px;">
+                <input type="text" id="new-type-name" placeholder="Enter new type name">
+                <button id="save-new-type-btn">Save Type</button>
+                <button id="cancel-new-type-btn">Cancel</button>
+           </div>
+            <button id="new-type-btn" style="margin-top: 10px;">New Type</button>
+            <hr>
+            <h3>JSON Import/Export</h3>
+            <p>Backup or restore your data using a JSON file.</p>
+            <input type="file" id="json-import-input" accept=".json" style="display: none;">
+            <button id="json-import-btn">Import from File</button>
+            <button id="json-export-btn">Export to File</button>
+        </div>
+    </div>
+
+    <div id="new-entity-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2 id="new-entity-modal-title">Create New Entity</h2>
+            <form id="new-entity-form"></form>
+        </div>
     </div>
 
     <script src="js/main.js"></script>

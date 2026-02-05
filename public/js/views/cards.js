@@ -1,52 +1,74 @@
-window.renderCards = (data) => {
-    const cardsContainer = document.querySelector('.cards-container');
+window.renderCards = (data, renderCurrentView, openNewEntityModal, openEntity, highlightEntity) => {
+    const cardsContainer = document.querySelector('#cards-view .cards-container');
     cardsContainer.innerHTML = '';
-    const entities = data.data.entities.entity || [];
-    const types = data.data.types.type || [];
 
-    entities.forEach(entity => {
-        const type = types.find(t => t.name._text === entity.type._text);
+    data.entities.forEach(entity => {
+        const type = data.types.find(t => t.id === entity.typeId);
         if (!type) return;
 
         const card = document.createElement('div');
         card.classList.add('card');
+        card.dataset.id = entity.id;
 
-        let attributesHtml = '';
-        if (type.attributes && type.attributes.attribute) {
-            if (!Array.isArray(type.attributes.attribute)) {
-                type.attributes.attribute = [type.attributes.attribute];
+        let attributesHTML = '';
+        type.attributes.forEach(attr => {
+            const value = entity.attributes[attr.name] || '';
+            if (attr.type === 'Link') {
+                const linkedEntity = data.entities.find(e => e.id === value);
+                if (linkedEntity) {
+                    const linkedType = data.types.find(t => t.id === linkedEntity.typeId);
+                    attributesHTML += `<p><strong>${attr.name}:</strong> <a href="#" class="entity-link" data-id="${linkedEntity.id}">${linkedType.name}: ${linkedEntity.name}</a></p>`;
+                } else {
+                     attributesHTML += `<p><strong>${attr.name}:</strong> </p>`;
+                }
+            } else {
+                attributesHTML += `<p><strong>${attr.name}:</strong> ${value}</p>`;
             }
-            type.attributes.attribute.forEach(attr => {
-                const attrName = attr.name._text;
-                const attrValue = entity[attrName] ? entity[attrName]._text : 'N/A';
-                attributesHtml += `<p><strong>${attrName}:</strong> ${attrValue}</p>`;
+        });
+
+        const backlinks = data.entities.filter(e => 
+            Object.values(e.attributes).includes(entity.id)
+        );
+
+        let backlinksHTML = '';
+        if (backlinks.length > 0) {
+            backlinksHTML = '<h4>Backlinks:</h4>';
+            backlinks.forEach(backlink => {
+                const backlinkType = data.types.find(t => t.id === backlink.typeId);
+                backlinksHTML += `<p><a href="#" class="entity-link" data-id="${backlink.id}">${backlinkType.name}: ${backlink.name}</a></p>`;
             });
         }
 
         card.innerHTML = `
-            <h3>${entity.type._text}</h3>
-            <h4>${entity.title ? entity.title._text : 'No Title'}</h4>
-            ${attributesHtml}
-            <div>
-                <button class="edit-btn" data-id="${entity._attributes.id}">✎</button>
-                <button class="delete-btn" data-id="${entity._attributes.id}">🗑</button>
-            </div>
+            <h3>${entity.name}</h3>
+            <p><em>${type.name}</em></p>
+            ${attributesHTML}
+            ${backlinksHTML}
+            <button class="edit-entity-btn" data-id="${entity.id}">Edit</button>
+            <button class="delete-entity-btn" data-id="${entity.id}">Delete</button>
         `;
+
         cardsContainer.appendChild(card);
     });
 
-    document.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            // Implement edit functionality
-            console.log('Edit entity:', e.target.dataset.id);
-        });
-    });
+    cardsContainer.addEventListener('click', async (event) => {
+        const target = event.target;
+        const entityId = target.dataset.id;
 
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const entityId = e.target.dataset.id;
-            await fetch(`/api/entities/${entityId}`, { method: 'DELETE' });
-            window.location.reload(); // Reload to see changes
-        });
+        if (target.classList.contains('edit-entity-btn')) {
+            openNewEntityModal(entityId);
+        }
+
+        if (target.classList.contains('delete-entity-btn')) {
+            if (confirm('Are you sure you want to delete this entity?')) {
+                await fetch(`/api/entities/${entityId}`, { method: 'DELETE' });
+                renderCurrentView();
+            }
+        }
+
+        if (target.classList.contains('entity-link')) {
+            event.preventDefault();
+            openEntity(entityId);
+        }
     });
 };
