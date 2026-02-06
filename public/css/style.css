@@ -319,14 +319,24 @@ main {
     margin-bottom: 5px;
 }
 
-/* Drag Handle */
-.drag-handle {
-    user-select: none;
-    color: #606770;
-    font-weight: bold;
+/* Move Buttons Container */
+.move-buttons {
+    display: flex;
+    flex-direction: column;
+    margin-right: 10px;
 }
-.drag-handle:hover {
-    color: #1877f2;
+
+.move-buttons button {
+    background: none;
+    border: 1px solid #ccc;
+    cursor: pointer;
+    font-size: 10px;
+    padding: 2px 5px;
+    margin: 1px 0;
+    border-radius: 3px;
+}
+.move-buttons button:hover {
+    background-color: #eee;
 }
 
 .attribute-info {

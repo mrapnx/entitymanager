@@ -195,8 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const attrElement = document.createElement('div');
             attrElement.classList.add('attribute-item');
             attrElement.dataset.index = index;
-            // Removed inline style="cursor: grab" and drag-handle class specific JS logic if conflicts occur
-            // But let's check Sortable handle implementation.
             
             // Build type selector HTML
             let typeOptions = `
@@ -213,7 +211,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             attrElement.innerHTML = `
-                <div class="drag-handle" style="cursor: grab; margin-right: 10px;">☰</div>
+                <div class="move-buttons">
+                    <button class="move-up-btn" data-index="${index}">▲</button>
+                    <button class="move-down-btn" data-index="${index}">▼</button>
+                </div>
                 <div class="attribute-info" style="flex-grow: 1; display: flex; align-items: center; gap: 10px;">
                     <span class="attribute-name">${attr.name}</span>
                     <select class="attribute-type-select" data-index="${index}">
@@ -230,25 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
             attributesList.appendChild(attrElement);
         });
         
-        // Initialize SortableJS for drag-and-drop
-        if (window.Sortable) {
-            // Check if Sortable is already initialized on this element to prevent duplicates
-            // We clear innerHTML above, so fresh elements are created, but let's be safe.
-            // Actually, recreating Sortable on new DOM elements is correct.
-            
-            Sortable.create(attributesList, {
-                animation: 150,
-                handle: '.drag-handle', // Restrict drag to the handle
-                forceFallback: true, 
-                // fallbackTolerance: 5, // Sensitivity for fallback
-                onEnd: async (evt) => {
-                    const [removed] = type.attributes.splice(evt.oldIndex, 1);
-                    type.attributes.splice(evt.newIndex, 0, removed);
-                    await updateTypeOnServer(typeId);
-                    renderAttributesList(typeId); // Re-render to ensure DOM is correct
-                }
-            });
-        }
+        // Removed SortableJS initialization
     };
     
     /**
@@ -433,8 +416,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const typeId = typeItem.getAttribute('data-id');
             const type = data.types.find(t => t.id === typeId);
 
+            // --- Move Up ---
+            if (target.classList.contains('move-up-btn')) {
+                const index = parseInt(target.dataset.index, 10);
+                if (index > 0) {
+                    const temp = type.attributes[index];
+                    type.attributes[index] = type.attributes[index - 1];
+                    type.attributes[index - 1] = temp;
+                    await updateTypeOnServer(typeId);
+                    renderAttributesList(typeId);
+                    renderCurrentView();
+                }
+            }
+            // --- Move Down ---
+            else if (target.classList.contains('move-down-btn')) {
+                const index = parseInt(target.dataset.index, 10);
+                if (index < type.attributes.length - 1) {
+                    const temp = type.attributes[index];
+                    type.attributes[index] = type.attributes[index + 1];
+                    type.attributes[index + 1] = temp;
+                    await updateTypeOnServer(typeId);
+                    renderAttributesList(typeId);
+                    renderCurrentView();
+                }
+            }
             // --- Add Attribute ---
-            if (target.classList.contains('add-attribute-btn')) {
+            else if (target.classList.contains('add-attribute-btn')) {
                 showAddAttributeForm(typeId, target);
             }
             // --- Cancel Add Attribute ---

@@ -8,13 +8,13 @@
           "type": "Text"
         },
         {
+          "name": "dezimalzahl",
+          "type": "Dezimalzahl"
+        },
+        {
           "name": "link",
           "type": "Link",
           "linkedTypeId": "1770332582519"
-        },
-        {
-          "name": "dezimalzahl",
-          "type": "Dezimalzahl"
         }
       ],
       "id": "1770332582519"
@@ -64,34 +64,32 @@
       "typeId": "1770332582519",
       "attributes": {
         "Text": "d",
-        "link": "",
+        "link": "1770332925569",
         "dezimalzahl": "3.5"
       },
       "id": "1770333320628"
     },
     {
-      "name": "sdfdsf",
-      "typeId": "1770383422746",
+      "name": "e2",
+      "typeId": "1770332582519",
       "attributes": {
-        "text": "tex",
-        "Ganzzahl": "1",
-        "dezimalzahl": "2",
-        "Link": "1770332925569",
-        "Link2": "1770332925569"
+        "Text": "t",
+        "link": "1770332925569",
+        "dezimalzahl": ""
       },
-      "id": "1770387826211"
+      "id": "1770401905573"
     },
     {
-      "name": "E2",
+      "name": "t2e1",
       "typeId": "1770383422746",
       "attributes": {
-        "text": "tttt",
-        "Ganzzahl": "5",
-        "dezimalzahl": "3.1",
-        "Link": "1770332925569",
-        "Link2": "1770387826211"
+        "text": "",
+        "Ganzzahl": "",
+        "dezimalzahl": "",
+        "Link": "1770333320628",
+        "Link2": ""
       },
-      "id": "1770388414632"
+      "id": "1770402256552"
     }
   ]
 }
