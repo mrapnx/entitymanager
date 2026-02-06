@@ -46,12 +46,14 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     const loadData = async () => {
         try {
+            console.log('[DEBUG] Fetching data from /api/data...');
             const response = await fetch('/api/data');
             if (!response.ok) throw new Error('Failed to load data.');
             data = await response.json();
+            console.log('[DEBUG] Data loaded successfully:', data);
             renderCurrentView();
         } catch (error) {
-            console.error('Error loading data:', error);
+            console.error('[DEBUG] Error loading data:', error);
             alert('Could not load data from the server.');
         }
     };
@@ -61,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {string} viewName - The name of the view to switch to.
      */
     const switchView = (viewName) => {
+        console.log(`[DEBUG] Switching to view: ${viewName}`);
         activeView = viewName;
         Object.values(views).forEach(view => view.style.display = 'none');
         Object.values(viewButtons).forEach(btn => btn.classList.remove('active'));
@@ -74,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Calls the appropriate render function based on the currently active view.
      */
     const renderCurrentView = () => {
+        console.log(`[DEBUG] Rendering current view: ${activeView}`);
         // We pass the core functions to the views so they can trigger actions
         const viewDependencies = { data, renderCurrentView, openNewEntityModal, openEntity, highlightEntity };
         if (activeView === 'cards') {
@@ -123,14 +127,24 @@ document.addEventListener('DOMContentLoaded', () => {
      * Renders the list of types and their attributes in the config modal.
      */
     const renderTypeManagement = () => {
+        console.log('[DEBUG] renderTypeManagement called. Current data.types:', data.types);
+        
+        if (!typeManagementContainer) {
+            console.error('[DEBUG] typeManagementContainer NOT FOUND in DOM!');
+            return;
+        }
+
         typeManagementContainer.innerHTML = '';
-        data.types.forEach(type => {
+        console.log(`[DEBUG] Cleared typeManagementContainer. Starting loop over ${data.types.length} types.`);
+
+        data.types.forEach((type, index) => {
+            console.log(`[DEBUG] Rendering type ${index + 1}/${data.types.length}:`, type);
             const typeElement = document.createElement('div');
             typeElement.classList.add('type-item');
-            typeElement.dataset.id = type.id;
+            typeElement.setAttribute('data-id', type.id);
             typeElement.innerHTML = `
                 <div class="type-header">
-                    <h3></h3>
+                    <h3 class="type-name-display"></h3>
                     <div>
                         <button class="edit-type-btn">Edit Name</button>
                         <button class="delete-type-btn">Delete Type</button>
@@ -141,11 +155,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="add-attribute-btn">Add Attribute</button>
             `;
             // Use textContent to prevent HTML injection issues with type names
-            typeElement.querySelector('h3').textContent = type.name;
+            typeElement.querySelector('.type-name-display').textContent = type.name;
 
             typeManagementContainer.appendChild(typeElement);
+            console.log(`[DEBUG] Appended typeElement for ID: ${type.id} to container.`);
             renderAttributesList(type.id);
         });
+        
+        console.log('[DEBUG] renderTypeManagement loop finished.');
     };
 
     /**
@@ -153,10 +170,25 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {string} typeId - The ID of the type whose attributes should be rendered.
      */
     const renderAttributesList = (typeId) => {
+        console.log(`[DEBUG] renderAttributesList called for typeId: ${typeId}`);
         const type = data.types.find(t => t.id === typeId);
-        if (!type) return;
+        if (!type) {
+             console.warn(`[DEBUG] Type with ID ${typeId} not found in data.types.`);
+             return;
+        }
 
-        const attributesList = typeManagementContainer.querySelector(`.type-item[data-id="${typeId}"] .attributes-list`);
+        // Find the correct type element and then the attributes list inside it
+        const typeElement = typeManagementContainer.querySelector(`.type-item[data-id="${typeId}"]`);
+        if (!typeElement) {
+            console.error(`[DEBUG] Could not find .type-item[data-id="${typeId}"] in DOM.`);
+            return;
+        }
+        const attributesList = typeElement.querySelector('.attributes-list');
+        if (!attributesList) {
+            console.error(`[DEBUG] Could not find .attributes-list within type element for ID ${typeId}.`);
+            return;
+        }
+        
         attributesList.innerHTML = ''; // Clear previous list
 
         type.attributes.forEach((attr, index) => {
@@ -172,15 +204,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         // Initialize SortableJS for drag-and-drop
-        Sortable.create(attributesList, {
-            animation: 150,
-            onEnd: async (evt) => {
-                const [removed] = type.attributes.splice(evt.oldIndex, 1);
-                type.attributes.splice(evt.newIndex, 0, removed);
-                await updateTypeOnServer(typeId);
-                renderAttributesList(typeId); // Re-render to ensure DOM is correct
-            }
-        });
+        if (window.Sortable) {
+            Sortable.create(attributesList, {
+                animation: 150,
+                onEnd: async (evt) => {
+                    const [removed] = type.attributes.splice(evt.oldIndex, 1);
+                    type.attributes.splice(evt.newIndex, 0, removed);
+                    await updateTypeOnServer(typeId);
+                    renderAttributesList(typeId); // Re-render to ensure DOM is correct
+                }
+            });
+        }
     };
     
     /**
@@ -189,7 +223,9 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {HTMLElement} addButton - The "Add Attribute" button that was clicked.
      */
     function showAddAttributeForm(typeId, addButton) {
-        const formContainer = document.querySelector(`.type-item[data-id="${typeId}"] .add-attribute-form-container`);
+        const typeItem = typeManagementContainer.querySelector(`.type-item[data-id="${typeId}"]`);
+        if (!typeItem) return;
+        const formContainer = typeItem.querySelector('.add-attribute-form-container');
         if (!formContainer) return;
 
         formContainer.style.display = 'block';
@@ -237,133 +273,156 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // View switching
     Object.keys(viewButtons).forEach(key => {
-        viewButtons[key].addEventListener('click', () => switchView(key));
+        if (viewButtons[key]) {
+            viewButtons[key].addEventListener('click', () => switchView(key));
+        }
     });
 
     // Configuration Modal
-    configBtn.addEventListener('click', () => {
-        configModal.style.display = 'block';
-        renderTypeManagement();
-    });
-    closeConfigBtn.addEventListener('click', () => configModal.style.display = 'none');
+    if (configBtn) {
+        configBtn.addEventListener('click', () => {
+            console.log('[DEBUG] Configuration button clicked.');
+            configModal.style.display = 'block';
+            renderTypeManagement();
+        });
+    }
+    
+    if (closeConfigBtn) {
+        closeConfigBtn.addEventListener('click', () => configModal.style.display = 'none');
+    }
 
     // "New Type" button actions
-    newTypeBtn.addEventListener('click', () => {
-        newTypeFormContainer.style.display = 'block';
-        newTypeBtn.style.display = 'none';
-    });
-    cancelNewTypeBtn.addEventListener('click', () => {
-        newTypeFormContainer.style.display = 'none';
-        newTypeBtn.style.display = 'block';
-        newTypeNameInput.value = '';
-    });
-    saveNewTypeBtn.addEventListener('click', async () => {
-        const typeName = newTypeNameInput.value.trim();
-        if (typeName) {
-            const newType = { name: typeName, attributes: [] };
-            const response = await fetch('/api/types', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newType)
-            });
-            const result = await response.json();
-            data.types.push(result.type);
-            renderTypeManagement();
-            newTypeNameInput.value = '';
+    if (newTypeBtn) {
+        newTypeBtn.addEventListener('click', () => {
+            newTypeFormContainer.style.display = 'block';
+            newTypeBtn.style.display = 'none';
+        });
+    }
+    
+    if (cancelNewTypeBtn) {
+        cancelNewTypeBtn.addEventListener('click', () => {
             newTypeFormContainer.style.display = 'none';
             newTypeBtn.style.display = 'block';
-        }
-    });
-
-    // Event Delegation for all actions inside the Type Management container
-    typeManagementContainer.addEventListener('click', async (event) => {
-        const target = event.target;
-        const typeItem = target.closest('.type-item');
-        if (!typeItem) return;
-        const typeId = typeItem.dataset.id;
-        const type = data.types.find(t => t.id === typeId);
-
-        // --- Add Attribute ---
-        if (target.classList.contains('add-attribute-btn')) {
-            showAddAttributeForm(typeId, target);
-        }
-        // --- Cancel Add Attribute ---
-        else if (target.classList.contains('cancel-attribute-btn')) {
-            const formContainer = target.closest('.add-attribute-form-container');
-            formContainer.style.display = 'none';
-            formContainer.innerHTML = '';
-            typeItem.querySelector('.add-attribute-btn').style.display = 'block';
-        }
-        // --- Save New Attribute ---
-        else if (target.classList.contains('save-attribute-btn')) {
-            const formContainer = target.closest('.add-attribute-form-container');
-            const name = formContainer.querySelector('.new-attr-name').value.trim();
-            const attrType = formContainer.querySelector('.new-attr-type').value;
-
-            if (!name) {
-                alert('Attribute name cannot be empty.');
-                return;
-            }
-
-            const newAttr = { name, type: attrType };
-            if (attrType === 'Link') {
-                newAttr.linkedTypeId = formContainer.querySelector('.new-attr-link-type').value;
-            }
-
-            type.attributes.push(newAttr);
-            await updateTypeOnServer(typeId);
-            renderAttributesList(typeId);
-            
-            formContainer.style.display = 'none';
-            formContainer.innerHTML = '';
-            typeItem.querySelector('.add-attribute-btn').style.display = 'block';
-            renderCurrentView(); // Update views in case attributes changed
-        }
-        // --- Delete Attribute ---
-        else if (target.classList.contains('delete-attribute-btn')) {
-            const attrIndex = parseInt(target.dataset.index, 10);
-            if (confirm('Are you sure you want to delete this attribute?')) {
-                type.attributes.splice(attrIndex, 1);
-                await updateTypeOnServer(typeId);
-                renderAttributesList(typeId);
-                renderCurrentView();
-            }
-        }
-        // --- Edit Type Name ---
-        else if (target.classList.contains('edit-type-btn')) {
-            const newName = prompt('Enter the new name for the type:', type.name);
-            if (newName && newName.trim() !== type.name) {
-                type.name = newName.trim();
-                await updateTypeOnServer(typeId);
-                renderTypeManagement(); // Re-render all types as name has changed
-                renderCurrentView();
-            }
-        }
-        // --- Delete Type ---
-        else if (target.classList.contains('delete-type-btn')) {
-            if (confirm(`Are you sure you want to delete the type "${type.name}"? This will also delete all entities of this type.`)) {
-                // Delete all entities of this type first
-                data.entities = data.entities.filter(e => e.typeId !== typeId);
-                
-                // Then delete the type itself
-                data.types = data.types.filter(t => t.id !== typeId);
-                
-                // Push the entire updated data object to the server
-                await fetch('/api/data', {
+            newTypeNameInput.value = '';
+        });
+    }
+    
+    if (saveNewTypeBtn) {
+        saveNewTypeBtn.addEventListener('click', async () => {
+            const typeName = newTypeNameInput.value.trim();
+            if (typeName) {
+                const newType = { name: typeName, attributes: [] };
+                const response = await fetch('/api/types', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(newType)
                 });
-
+                const result = await response.json();
+                data.types.push(result.type);
                 renderTypeManagement();
-                renderCurrentView();
+                newTypeNameInput.value = '';
+                newTypeFormContainer.style.display = 'none';
+                newTypeBtn.style.display = 'block';
             }
-        }
-    });
+        });
+    }
+
+    // Event Delegation for all actions inside the Type Management container
+    if (typeManagementContainer) {
+        typeManagementContainer.addEventListener('click', async (event) => {
+            const target = event.target;
+            const typeItem = target.closest('.type-item');
+            if (!typeItem) return;
+            const typeId = typeItem.getAttribute('data-id');
+            const type = data.types.find(t => t.id === typeId);
+
+            // --- Add Attribute ---
+            if (target.classList.contains('add-attribute-btn')) {
+                showAddAttributeForm(typeId, target);
+            }
+            // --- Cancel Add Attribute ---
+            else if (target.classList.contains('cancel-attribute-btn')) {
+                const formContainer = target.closest('.add-attribute-form-container');
+                formContainer.style.display = 'none';
+                formContainer.innerHTML = '';
+                typeItem.querySelector('.add-attribute-btn').style.display = 'block';
+            }
+            // --- Save New Attribute ---
+            else if (target.classList.contains('save-attribute-btn')) {
+                const formContainer = target.closest('.add-attribute-form-container');
+                const name = formContainer.querySelector('.new-attr-name').value.trim();
+                const attrType = formContainer.querySelector('.new-attr-type').value;
+
+                if (!name) {
+                    alert('Attribute name cannot be empty.');
+                    return;
+                }
+
+                const newAttr = { name, type: attrType };
+                if (attrType === 'Link') {
+                    newAttr.linkedTypeId = formContainer.querySelector('.new-attr-link-type').value;
+                }
+
+                type.attributes.push(newAttr);
+                await updateTypeOnServer(typeId);
+                renderAttributesList(typeId);
+                
+                formContainer.style.display = 'none';
+                formContainer.innerHTML = '';
+                typeItem.querySelector('.add-attribute-btn').style.display = 'block';
+                renderCurrentView(); // Update views in case attributes changed
+            }
+            // --- Delete Attribute ---
+            else if (target.classList.contains('delete-attribute-btn')) {
+                const attrIndex = parseInt(target.dataset.index, 10);
+                if (confirm('Are you sure you want to delete this attribute?')) {
+                    type.attributes.splice(attrIndex, 1);
+                    await updateTypeOnServer(typeId);
+                    renderAttributesList(typeId);
+                    renderCurrentView();
+                }
+            }
+            // --- Edit Type Name ---
+            else if (target.classList.contains('edit-type-btn')) {
+                const newName = prompt('Enter the new name for the type:', type.name);
+                if (newName && newName.trim() !== type.name) {
+                    type.name = newName.trim();
+                    await updateTypeOnServer(typeId);
+                    renderTypeManagement(); // Re-render all types as name has changed
+                    renderCurrentView();
+                }
+            }
+            // --- Delete Type ---
+            else if (target.classList.contains('delete-type-btn')) {
+                if (confirm(`Are you sure you want to delete the type "${type.name}"? This will also delete all entities of this type.`)) {
+                    // Delete all entities of this type first
+                    data.entities = data.entities.filter(e => e.typeId !== typeId);
+                    
+                    // Then delete the type itself
+                    data.types = data.types.filter(t => t.id !== typeId);
+                    
+                    // Push the entire updated data object to the server
+                    await fetch('/api/data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+
+                    renderTypeManagement();
+                    renderCurrentView();
+                }
+            }
+        });
+    }
 
     // --- New/Edit Entity Modal ---
-    newEntityBtn.addEventListener('click', () => openNewEntityModal());
-    closeNewEntityBtn.addEventListener('click', () => newEntityModal.style.display = 'none');
+    if (newEntityBtn) {
+        newEntityBtn.addEventListener('click', () => openNewEntityModal());
+    }
+    
+    if (closeNewEntityBtn) {
+        closeNewEntityBtn.addEventListener('click', () => newEntityModal.style.display = 'none');
+    }
     
     const openNewEntityModal = (entityId = null) => {
         editingEntityId = entityId;
@@ -435,82 +494,90 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    newEntityForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const formData = new FormData(newEntityForm);
-        const typeId = formData.get('typeId');
-        const type = data.types.find(t => t.id === typeId);
-        const attributes = {};
-        if (type) {
-            type.attributes.forEach(attr => {
-                attributes[attr.name] = formData.get(attr.name) || '';
-            });
-        }
-        const entityData = {
-            name: formData.get('name'),
-            typeId: typeId,
-            attributes: attributes
-        };
+    if (newEntityForm) {
+        newEntityForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const formData = new FormData(newEntityForm);
+            const typeId = formData.get('typeId');
+            const type = data.types.find(t => t.id === typeId);
+            const attributes = {};
+            if (type) {
+                type.attributes.forEach(attr => {
+                    attributes[attr.name] = formData.get(attr.name) || '';
+                });
+            }
+            const entityData = {
+                name: formData.get('name'),
+                typeId: typeId,
+                attributes: attributes
+            };
 
-        if (editingEntityId) {
-            const response = await fetch(`/api/entities/${editingEntityId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(entityData)
-            });
-        } else {
-            const response = await fetch('/api/entities', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(entityData)
-            });
-        }
-        
-        newEntityModal.style.display = 'none';
-        await loadData(); // Reload all data to ensure consistency
-    });
-
-    // --- JSON Import/Export ---
-    jsonExportBtn.addEventListener('click', () => {
-        const dataStr = JSON.stringify(data, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'data.json';
-        a.click();
-        URL.revokeObjectURL(url);
-    });
-
-    jsonImportBtn.addEventListener('click', () => jsonImportInput.click());
-
-    jsonImportInput.addEventListener('change', (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const importedData = JSON.parse(e.target.result);
-                if (!importedData.types || !importedData.entities) {
-                    throw new Error('Invalid data structure.');
-                }
-                await fetch('/api/data', {
+            if (editingEntityId) {
+                const response = await fetch(`/api/entities/${editingEntityId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(entityData)
+                });
+            } else {
+                const response = await fetch('/api/entities', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(importedData)
+                    body: JSON.stringify(entityData)
                 });
-                data = importedData;
-                renderTypeManagement();
-                renderCurrentView();
-                configModal.style.display = 'none';
-            } catch (error) {
-                console.error('Error importing JSON:', error);
-                alert('Invalid JSON file. Please ensure it has the correct structure.');
             }
-        };
-        reader.readAsText(file);
-    });
+            
+            newEntityModal.style.display = 'none';
+            await loadData(); // Reload all data to ensure consistency
+        });
+    }
+
+    // --- JSON Import/Export ---
+    if (jsonExportBtn) {
+        jsonExportBtn.addEventListener('click', () => {
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    if (jsonImportBtn) {
+        jsonImportBtn.addEventListener('click', () => jsonImportInput.click());
+    }
+
+    if (jsonImportInput) {
+        jsonImportInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (!importedData.types || !importedData.entities) {
+                        throw new Error('Invalid data structure.');
+                    }
+                    await fetch('/api/data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(importedData)
+                    });
+                    data = importedData;
+                    renderTypeManagement();
+                    renderCurrentView();
+                    configModal.style.display = 'none';
+                } catch (error) {
+                    console.error('Error importing JSON:', error);
+                    alert('Invalid JSON file. Please ensure it has the correct structure.');
+                }
+            };
+            reader.readAsText(file);
+        });
+    }
 
     // --- Initial Load ---
     switchView('cards'); // Set initial view

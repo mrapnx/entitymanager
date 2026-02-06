@@ -6,14 +6,57 @@
         {
           "name": "a1",
           "type": "Text"
+        },
+        {
+          "name": "link",
+          "type": "Link",
+          "linkedTypeId": "1770332582519"
         }
       ],
       "id": "1770332582519"
     },
     {
       "name": "t2sdfsdf",
-      "attributes": [],
+      "attributes": [
+        {
+          "name": "text",
+          "type": "Text"
+        },
+        {
+          "name": "ganzzahl",
+          "type": "Ganzzahl"
+        },
+        {
+          "name": "dezimalzahl",
+          "type": "Dezimalzahl"
+        },
+        {
+          "name": "Link",
+          "type": "Link",
+          "linkedTypeId": "1770332582519"
+        }
+      ],
       "id": "1770383422746"
+    },
+    {
+      "name": "t2 neu",
+      "attributes": [],
+      "id": "1770385745573"
+    },
+    {
+      "name": "dfgfdfg",
+      "attributes": [],
+      "id": "1770385933571"
+    },
+    {
+      "name": "888888",
+      "attributes": [],
+      "id": "1770386107303"
+    },
+    {
+      "name": "kllmllml",
+      "attributes": [],
+      "id": "1770386198117"
     }
   ],
   "entities": [
@@ -41,6 +84,17 @@
         "a1": "d"
       },
       "id": "1770333320628"
+    },
+    {
+      "name": "neu t2",
+      "typeId": "1770383422746",
+      "attributes": {
+        "text": "dfgfdg",
+        "ganzzahl": "sdf",
+        "dezimalzahl": "sdfsdf",
+        "Link": "1770333320628"
+      },
+      "id": "1770386843217"
     }
   ]
 }
