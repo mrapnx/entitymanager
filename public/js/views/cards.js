@@ -74,7 +74,7 @@ window.renderCards = ({ data, renderCurrentView, openNewEntityModal, openEntity,
 
         let backlinksHTML = '';
         if (backlinks.length > 0) {
-            backlinksHTML = '<h4>Backlinks:</h4>';
+            backlinksHTML = '<strong>Backlinks:</strong>';
             backlinks.forEach(backlink => {
                 const backlinkType = data.types.find(t => t.id === backlink.typeId);
                 backlinksHTML += `<p><a href="#" class="entity-link" data-id="${backlink.id}">${backlinkType ? backlinkType.name : 'Unknown'}: ${backlink.name}</a></p>`;
