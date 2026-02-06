@@ -192,8 +192,24 @@ main {
     color: #606770;
 }
 
+.entity-table .sort-icon {
+    font-size: 0.8em;
+    margin-left: 5px;
+    color: #999;
+}
+
 .entity-table tbody tr:hover {
     background-color: #f0f2f5;
+}
+
+/* Sum Row Styling */
+.entity-table tr.sum-row {
+    background-color: #f0f2f5;
+    border-top: 2px solid #dddfe2;
+}
+.entity-table tr.sum-row td {
+    font-weight: bold;
+    color: #1c1e21;
 }
 
 .entity-table .actions {
@@ -311,6 +327,24 @@ main {
 }
 .drag-handle:hover {
     color: #1877f2;
+}
+
+.attribute-info {
+    font-size: 14px;
+}
+.attribute-name {
+    font-weight: 500;
+    margin-right: 5px;
+}
+.attribute-type-select {
+    padding: 4px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    font-size: 13px;
+}
+.link-info {
+    font-size: 12px;
+    color: #606770;
 }
 
 .attributes-list .attribute-item button {

@@ -2,6 +2,7 @@
 // To keep consistency, we can attach it to the window or use a shared state.
 // For now, let's keep it consistent within the view module.
 let tableSelectedTypeIds = new Set();
+let currentSort = { column: null, direction: 'asc' }; // 'asc' or 'desc'
 
 window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
     const tableContainer = document.querySelector('#table-view .table-container');
@@ -30,7 +31,7 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
     });
 
     // --- Filter Entities ---
-    const filteredEntities = tableSelectedTypeIds.size === 0 
+    let filteredEntities = tableSelectedTypeIds.size === 0 
         ? data.entities 
         : data.entities.filter(e => tableSelectedTypeIds.has(e.typeId));
 
@@ -40,34 +41,88 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
     }
 
     // Determine all unique attributes across selected types to build columns
-    // If no types are selected (showing all), we need a strategy for columns.
-    // Strategy: Show Name, Type, and a union of all attributes (or just common ones? Union is better but can be wide).
-    // Let's go with Union of attributes from the types of the displayed entities.
-    
     // Get types involved in the filtered entities
     const involvedTypeIds = new Set(filteredEntities.map(e => e.typeId));
     const involvedTypes = data.types.filter(t => involvedTypeIds.has(t.id));
 
-    // Collect all unique attribute names
+    // Collect all unique attribute names and map them to their definitions for type checking (numeric sum)
     const allAttributeNames = new Set();
+    const attributeDefs = {}; // Map name -> type def
     involvedTypes.forEach(t => {
-        t.attributes.forEach(attr => allAttributeNames.add(attr.name));
+        t.attributes.forEach(attr => {
+            allAttributeNames.add(attr.name);
+            // We store the attribute type. If multiple types share a name but differ in type, we prioritize numeric for sum row logic if any is numeric.
+            if (!attributeDefs[attr.name] || (attr.type === 'Ganzzahl' || attr.type === 'Dezimalzahl')) {
+                attributeDefs[attr.name] = attr.type;
+            }
+        });
     });
     const sortedAttributeNames = Array.from(allAttributeNames).sort();
+
+    // --- Sort Logic ---
+    if (currentSort.column) {
+        filteredEntities.sort((a, b) => {
+            let valA, valB;
+            
+            if (currentSort.column === 'Name') {
+                valA = a.name.toLowerCase();
+                valB = b.name.toLowerCase();
+            } else if (currentSort.column === 'Type') {
+                const typeA = data.types.find(t => t.id === a.typeId)?.name || '';
+                const typeB = data.types.find(t => t.id === b.typeId)?.name || '';
+                valA = typeA.toLowerCase();
+                valB = typeB.toLowerCase();
+            } else {
+                // Attribute sort
+                valA = a.attributes[currentSort.column];
+                valB = b.attributes[currentSort.column];
+                
+                // Handle numbers
+                const attrType = attributeDefs[currentSort.column];
+                if (attrType === 'Ganzzahl' || attrType === 'Dezimalzahl') {
+                    valA = valA === undefined || valA === '' ? -Infinity : Number(valA);
+                    valB = valB === undefined || valB === '' ? -Infinity : Number(valB);
+                } else {
+                     valA = (valA || '').toString().toLowerCase();
+                     valB = (valB || '').toString().toLowerCase();
+                }
+            }
+
+            if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+            if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
+
+    // --- Helper to generate sortable header ---
+    const getSortIndicator = (colName) => {
+        if (currentSort.column !== colName) return ' <span class="sort-icon">↕</span>';
+        return currentSort.direction === 'asc' ? ' <span class="sort-icon">↑</span>' : ' <span class="sort-icon">↓</span>';
+    };
 
     // --- Table Header ---
     let tableHTML = '<table class="entity-table">';
     tableHTML += '<thead><tr>';
-    tableHTML += '<th>Name</th>';
-    tableHTML += '<th>Type</th>';
+    tableHTML += `<th class="sortable" data-col="Name">Name${getSortIndicator('Name')}</th>`;
+    tableHTML += `<th class="sortable" data-col="Type">Type${getSortIndicator('Type')}</th>`;
     sortedAttributeNames.forEach(attrName => {
-        tableHTML += `<th>${attrName}</th>`;
+        tableHTML += `<th class="sortable" data-col="${attrName}">${attrName}${getSortIndicator(attrName)}</th>`;
     });
     tableHTML += '<th>Actions</th>';
     tableHTML += '</tr></thead>';
 
     // --- Table Body ---
     tableHTML += '<tbody>';
+    
+    // Sum Row Calculation
+    const sums = {};
+    sortedAttributeNames.forEach(attrName => {
+        const type = attributeDefs[attrName];
+        if (type === 'Ganzzahl' || type === 'Dezimalzahl') {
+            sums[attrName] = 0;
+        }
+    });
+
     filteredEntities.forEach(entity => {
         const type = data.types.find(t => t.id === entity.typeId);
         
@@ -76,13 +131,20 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
         tableHTML += `<td>${type ? type.name : 'Unknown'}</td>`;
         
         sortedAttributeNames.forEach(attrName => {
-            // Find the attribute definition in the entity's type
-            const attrDef = type ? type.attributes.find(a => a.name === attrName) : null;
-            const value = entity.attributes[attrName] || '';
+            const attrType = attributeDefs[attrName]; // Use collected definition or type from entity? Collected is safer for col consistency.
+            const value = entity.attributes[attrName];
             
-            let cellContent = value;
+            // Add to Sum
+            if ((attrType === 'Ganzzahl' || attrType === 'Dezimalzahl') && value !== undefined && value !== '') {
+                sums[attrName] += Number(value);
+            }
             
-            if (attrDef && attrDef.type === 'Link') {
+            let cellContent = value !== undefined ? value : '';
+            
+            // Re-check specific type for this entity to render links correctly if mixed
+            const specificAttrDef = type ? type.attributes.find(a => a.name === attrName) : null;
+            
+            if (specificAttrDef && specificAttrDef.type === 'Link') {
                  const linkedEntity = data.entities.find(e => e.id === value);
                  if (linkedEntity) {
                     const linkedType = data.types.find(t => t.id === linkedEntity.typeId);
@@ -90,7 +152,7 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
                  } else {
                      cellContent = '<span class="text-muted">-</span>';
                  }
-            } else if (!value) {
+            } else if (cellContent === '') {
                 cellContent = '<span class="text-muted">-</span>';
             }
 
@@ -105,14 +167,59 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
         `;
         tableHTML += `</tr>`;
     });
+
+    // --- Sum Row ---
+    // Check if we have any numeric columns to show a sum row
+    const hasNumeric = Object.keys(sums).length > 0;
+    if (hasNumeric) {
+        tableHTML += '<tr class="sum-row" style="background-color: #f7f7f7; font-weight: bold;">';
+        tableHTML += '<td>Summe</td>'; // Label under Name
+        tableHTML += '<td></td>';     // Empty under Type
+        sortedAttributeNames.forEach(attrName => {
+            if (sums[attrName] !== undefined) {
+                // Round to avoid floating point errors
+                const sumVal = Math.round((sums[attrName] + Number.EPSILON) * 100) / 100;
+                tableHTML += `<td>${sumVal}</td>`;
+            } else {
+                tableHTML += '<td></td>';
+            }
+        });
+        tableHTML += '<td></td>'; // Actions col
+        tableHTML += '</tr>';
+    }
+
     tableHTML += '</tbody></table>';
 
     tableContainer.innerHTML = tableHTML;
 
     // --- Event Listeners ---
+    
+    // Sort Headers
+    const headers = tableContainer.querySelectorAll('th.sortable');
+    headers.forEach(th => {
+        th.style.cursor = 'pointer';
+        th.onclick = () => {
+            const col = th.dataset.col;
+            if (currentSort.column === col) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = col;
+                currentSort.direction = 'asc';
+            }
+            window.renderTable({ data, renderCurrentView, openNewEntityModal });
+        };
+    });
+
+
     tableContainer.onclick = async (event) => {
         const target = event.target;
         
+        // Handle sort click propagation if clicking on icon inside th
+        if (target.closest('th.sortable')) {
+             // Handled by specific listener above, but propagation might bubble here if we used delegation.
+             // Since we attached directly to elements above, we are good.
+        }
+
         if (target.classList.contains('edit-entity-btn')) {
             openNewEntityModal(target.getAttribute('data-id'));
         }
@@ -121,22 +228,7 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
             const entityIdToDelete = target.getAttribute('data-id');
             if (confirm('Are you sure you want to delete this entity?')) {
                 await fetch(`/api/entities/${entityIdToDelete}`, { method: 'DELETE' });
-                // We need to reload data to refresh the view correctly.
-                // Since renderTable is called with 'data', we should ideally trigger a reload from main.js
-                // But main.js passes renderCurrentView which does the reload flow if implemented there?
-                // Actually renderCurrentView in main.js calls window.renderTable(viewDependencies).
-                // It does NOT refetch data. We need to refetch data.
-                // Since we don't have direct access to 'loadData' here (unless passed), 
-                // we rely on the fact that the delete happened on server.
-                // However, the local 'data' object is stale.
-                // Ideally, main.js should handle the data reload or we should trigger a custom event.
-                // For simplicity, let's assume the main app will handle reload if we reload the page or 
-                // if we had a callback for data update.
-                // WAIT: In main.js, we see renderCurrentView passes `loadData`? No.
-                // But in main.js delete listener, it calls `renderCurrentView`.
-                // We need to trigger the full reload cycle.
-                // Let's dispatch a custom event or force reload.
-                location.reload(); // Quickest fix for data sync in this architecture without refactoring main.js heavily
+                location.reload(); 
             }
         }
     };

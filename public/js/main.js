@@ -195,30 +195,52 @@ document.addEventListener('DOMContentLoaded', () => {
             const attrElement = document.createElement('div');
             attrElement.classList.add('attribute-item');
             attrElement.dataset.index = index;
+            // Removed inline style="cursor: grab" and drag-handle class specific JS logic if conflicts occur
+            // But let's check Sortable handle implementation.
+            
+            // Build type selector HTML
+            let typeOptions = `
+                <option value="Text" ${attr.type === 'Text' ? 'selected' : ''}>Text</option>
+                <option value="Ganzzahl" ${attr.type === 'Ganzzahl' ? 'selected' : ''}>Ganzzahl</option>
+                <option value="Dezimalzahl" ${attr.type === 'Dezimalzahl' ? 'selected' : ''}>Dezimalzahl</option>
+                <option value="Link" ${attr.type === 'Link' ? 'selected' : ''}>Link</option>
+            `;
+            
+            let linkedTypeHTML = '';
+            if (attr.type === 'Link') {
+                 const linkedEntities = data.types.map(t => `<option value="${t.id}" ${t.id === attr.linkedTypeId ? 'selected' : ''}>${t.name}</option>`).join('');
+                 linkedTypeHTML = `<span class="link-info"> -> ${data.types.find(t=>t.id === attr.linkedTypeId)?.name || 'Any'}</span>`;
+            }
+
             attrElement.innerHTML = `
                 <div class="drag-handle" style="cursor: grab; margin-right: 10px;">☰</div>
-                <span style="flex-grow: 1;"></span>
+                <div class="attribute-info" style="flex-grow: 1; display: flex; align-items: center; gap: 10px;">
+                    <span class="attribute-name">${attr.name}</span>
+                    <select class="attribute-type-select" data-index="${index}">
+                        ${typeOptions}
+                    </select>
+                    ${linkedTypeHTML}
+                </div>
                 <div>
                   <button class="edit-attribute-btn" data-index="${index}">Bearbeiten</button>
                   <button class="delete-attribute-btn" data-index="${index}">Löschen</button>
                 </div>
             `;
             
-            let typeDisplay = attr.type;
-            if (attr.type === 'Link') {
-                const linkedType = data.types.find(t => t.id === attr.linkedTypeId);
-                typeDisplay += ` (${linkedType ? linkedType.name : 'Any Type'})`;
-            }
-            attrElement.querySelector('span').textContent = `${attr.name} (${typeDisplay})`;
-            
             attributesList.appendChild(attrElement);
         });
         
         // Initialize SortableJS for drag-and-drop
         if (window.Sortable) {
+            // Check if Sortable is already initialized on this element to prevent duplicates
+            // We clear innerHTML above, so fresh elements are created, but let's be safe.
+            // Actually, recreating Sortable on new DOM elements is correct.
+            
             Sortable.create(attributesList, {
                 animation: 150,
                 handle: '.drag-handle', // Restrict drag to the handle
+                forceFallback: true, 
+                // fallbackTolerance: 5, // Sensitivity for fallback
                 onEnd: async (evt) => {
                     const [removed] = type.attributes.splice(evt.oldIndex, 1);
                     type.attributes.splice(evt.newIndex, 0, removed);
@@ -344,6 +366,66 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Event Delegation for all actions inside the Type Management container
     if (typeManagementContainer) {
+        // We need to handle 'change' events for the select dropdowns
+        typeManagementContainer.addEventListener('change', async (event) => {
+            const target = event.target;
+            if (target.classList.contains('attribute-type-select')) {
+                 const typeItem = target.closest('.type-item');
+                 if (!typeItem) return;
+                 const typeId = typeItem.getAttribute('data-id');
+                 const type = data.types.find(t => t.id === typeId);
+                 const attrIndex = parseInt(target.dataset.index, 10);
+                 const attr = type.attributes[attrIndex];
+                 const newType = target.value;
+
+                 if (newType !== attr.type) {
+                     const oldType = attr.type;
+                     attr.type = newType;
+                     
+                     // Handle Link specific logic on switch
+                     if (newType === 'Link') {
+                         attr.linkedTypeId = null; // Default to Any or handle via UI later
+                         // Ideally we should open a small modal or sub-UI to pick target type
+                         // For now, defaulting to null (Any)
+                     } else {
+                         delete attr.linkedTypeId;
+                     }
+
+                     // Convert values in all entities
+                     const entitiesToUpdate = data.entities.filter(e => e.typeId === typeId);
+                     for (const entity of entitiesToUpdate) {
+                         let val = entity.attributes[attr.name];
+                         if (val !== undefined && val !== null && val !== '') {
+                             if (newType === 'Ganzzahl') {
+                                 const parsed = parseInt(val, 10);
+                                 entity.attributes[attr.name] = isNaN(parsed) ? '' : parsed; 
+                             } else if (newType === 'Dezimalzahl') {
+                                 const parsed = parseFloat(val);
+                                 entity.attributes[attr.name] = isNaN(parsed) ? '' : parsed;
+                             } else if (newType === 'Text') {
+                                 entity.attributes[attr.name] = String(val);
+                             } else if (newType === 'Link') {
+                                 // Basic conversion attempt
+                                 const targetEntity = data.entities.find(e => e.name === val || e.id === val);
+                                 entity.attributes[attr.name] = targetEntity ? targetEntity.id : '';
+                             }
+                         }
+                         
+                         // Update entity
+                         await fetch(`/api/entities/${entity.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(entity)
+                        });
+                     }
+
+                     await updateTypeOnServer(typeId);
+                     renderAttributesList(typeId);
+                     renderCurrentView();
+                 }
+            }
+        });
+
         typeManagementContainer.addEventListener('click', async (event) => {
             const target = event.target;
             const typeItem = target.closest('.type-item');

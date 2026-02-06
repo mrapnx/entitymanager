@@ -11,6 +11,10 @@
           "name": "link",
           "type": "Link",
           "linkedTypeId": "1770332582519"
+        },
+        {
+          "name": "dezimalzahl",
+          "type": "Dezimalzahl"
         }
       ],
       "id": "1770332582519"
@@ -49,7 +53,9 @@
       "name": "e1",
       "typeId": "1770332582519",
       "attributes": {
-        "Text": "1"
+        "Text": "te",
+        "link": "",
+        "dezimalzahl": "3.5"
       },
       "id": "1770332925569"
     },
@@ -57,7 +63,9 @@
       "name": "e3",
       "typeId": "1770332582519",
       "attributes": {
-        "Text": "d"
+        "Text": "d",
+        "link": "",
+        "dezimalzahl": "3.5"
       },
       "id": "1770333320628"
     },
@@ -65,11 +73,11 @@
       "name": "sdfdsf",
       "typeId": "1770383422746",
       "attributes": {
-        "text": "TextWert",
+        "text": "tex",
+        "Ganzzahl": "1",
         "dezimalzahl": "2",
         "Link": "1770332925569",
-        "Link2": "1770332925569",
-        "Ganzzahl": "1"
+        "Link2": "1770332925569"
       },
       "id": "1770387826211"
     },
@@ -77,11 +85,11 @@
       "name": "E2",
       "typeId": "1770383422746",
       "attributes": {
-        "text": "text wert",
-        "dezimalzahl": "",
+        "text": "tttt",
+        "Ganzzahl": "5",
+        "dezimalzahl": "3.1",
         "Link": "1770332925569",
-        "Link2": "1770387826211",
-        "Ganzzahl": ""
+        "Link2": "1770387826211"
       },
       "id": "1770388414632"
     }
