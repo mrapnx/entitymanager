@@ -24,6 +24,10 @@ To deploy this application using Docker, follow these steps:
     ```bash
     docker-compose up
     ```
+3. **Updating the container**
+   ```
+    docker compose up --build --force-recreate
+   ```
 
 ### Manual Deployment
 
