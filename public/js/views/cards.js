@@ -1,13 +1,45 @@
+// Store the selected type IDs for filtering
+let selectedTypeIds = new Set();
+
 window.renderCards = ({ data, renderCurrentView, openNewEntityModal, openEntity, highlightEntity }) => {
     const cardsContainer = document.querySelector('#cards-view .cards-container');
+    const filterContainer = document.querySelector('#cards-view .filter-container');
+    
+    // --- Render Filter Chips ---
+    filterContainer.innerHTML = '<span>Filter by Type:</span>';
+    data.types.forEach(type => {
+        const chip = document.createElement('div');
+        chip.classList.add('filter-chip');
+        if (selectedTypeIds.has(type.id)) {
+            chip.classList.add('active');
+        }
+        chip.textContent = type.name;
+        chip.dataset.id = type.id;
+        chip.addEventListener('click', () => {
+            if (selectedTypeIds.has(type.id)) {
+                selectedTypeIds.delete(type.id);
+            } else {
+                selectedTypeIds.add(type.id);
+            }
+            // Re-render the cards with the new filter
+            window.renderCards({ data, renderCurrentView, openNewEntityModal, openEntity, highlightEntity });
+        });
+        filterContainer.appendChild(chip);
+    });
+
+    // --- Render Cards ---
     cardsContainer.innerHTML = ''; // Clear previous render
 
-    if (!data.entities || data.entities.length === 0) {
-        cardsContainer.innerHTML = '<p>No entities found. Create one by clicking the "+ New Entity" button.</p>';
+    const filteredEntities = selectedTypeIds.size === 0 
+        ? data.entities 
+        : data.entities.filter(e => selectedTypeIds.has(e.typeId));
+
+    if (!filteredEntities || filteredEntities.length === 0) {
+        cardsContainer.innerHTML = '<p>No entities found matching the selected filters.</p>';
         return;
     }
 
-    data.entities.forEach(entity => {
+    filteredEntities.forEach(entity => {
         const type = data.types.find(t => t.id === entity.typeId);
         if (!type) return; // Skip entity if its type doesn't exist
 
@@ -64,12 +96,12 @@ window.renderCards = ({ data, renderCurrentView, openNewEntityModal, openEntity,
     });
 
     // --- Event Listeners for Cards ---
-    // Note: Using event delegation on the container for dynamically added cards
-    // Removing previous listener to prevent multiple calls if renderCards is called multiple times
-    const newCardsContainer = cardsContainer.cloneNode(true);
-    cardsContainer.parentNode.replaceChild(newCardsContainer, cardsContainer);
-
-    newCardsContainer.addEventListener('click', async (event) => {
+    // Note: Re-binding listeners using a cleaner approach than node cloning
+    // We remove the old listener by replacing the element's innerHTML (already done) 
+    // and then adding a new one. But delegation is better on a static parent if possible.
+    // Let's use a one-time assignment for the container's onclick if we're not using delegation properly.
+    
+    cardsContainer.onclick = async (event) => {
         const target = event.target;
         console.log('[DEBUG] Card container clicked, target:', target);
 
@@ -105,5 +137,5 @@ window.renderCards = ({ data, renderCurrentView, openNewEntityModal, openEntity,
             console.log('[DEBUG] Entity link clicked for ID:', id);
             openEntity(id);
         }
-    });
+    };
 };

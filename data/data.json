@@ -34,6 +34,11 @@
           "name": "Link",
           "type": "Link",
           "linkedTypeId": "1770332582519"
+        },
+        {
+          "name": "Link2",
+          "type": "Link",
+          "linkedTypeId": ""
         }
       ],
       "id": "1770383422746"
@@ -84,6 +89,18 @@
         "a1": "d"
       },
       "id": "1770333320628"
+    },
+    {
+      "name": "sdfdsf",
+      "typeId": "1770383422746",
+      "attributes": {
+        "text": "",
+        "ganzzahl": "",
+        "dezimalzahl": "",
+        "Link": "1770332925569",
+        "Link2": "1770332925569"
+      },
+      "id": "1770387826211"
     }
   ]
 }

@@ -199,7 +199,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span></span>
                 <button class="delete-attribute-btn" data-index="${index}">Delete</button>
             `;
-            attrElement.querySelector('span').textContent = `${attr.name} (${attr.type})`;
+            
+            let typeDisplay = attr.type;
+            if (attr.type === 'Link') {
+                const linkedType = data.types.find(t => t.id === attr.linkedTypeId);
+                typeDisplay += ` (${linkedType ? linkedType.name : 'Any Type'})`;
+            }
+            attrElement.querySelector('span').textContent = `${attr.name} (${typeDisplay})`;
+            
             attributesList.appendChild(attrElement);
         });
         
@@ -231,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formContainer.style.display = 'block';
         if(addButton) addButton.style.display = 'none';
 
-        const linkTypeOptions = data.types.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        const linkTypeOptions = '<option value="">Any Type</option>' + data.types.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
         formContainer.innerHTML = `
             <input type="text" class="new-attr-name" placeholder="Attribute Name" style="margin-bottom: 5px;">
@@ -241,16 +248,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 <option>Dezimalzahl</option>
                 <option>Link</option>
             </select>
-            <select class="new-attr-link-type" style="display:none; margin-bottom: 5px;">
-                ${linkTypeOptions}
-            </select>
+            <div class="link-type-select-container" style="display:none; margin-bottom: 5px;">
+                <label>Target Type:</label>
+                <select class="new-attr-link-type">
+                    ${linkTypeOptions}
+                </select>
+            </div>
             <button class="save-attribute-btn">Save</button>
             <button class="cancel-attribute-btn">Cancel</button>
         `;
 
         formContainer.querySelector('.new-attr-type').addEventListener('change', e => {
-            const linkTypeSelect = formContainer.querySelector('.new-attr-link-type');
-            linkTypeSelect.style.display = e.target.value === 'Link' ? 'block' : 'none';
+            const linkTypeContainer = formContainer.querySelector('.link-type-select-container');
+            linkTypeContainer.style.display = e.target.value === 'Link' ? 'block' : 'none';
         });
     }
 
