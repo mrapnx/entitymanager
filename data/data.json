@@ -11,54 +11,9 @@
       "id": "1770332582519"
     },
     {
-      "name": "t2",
+      "name": "t2sdfsdf",
       "attributes": [],
-      "id": "1770332593321"
-    },
-    {
-      "name": "t2",
-      "attributes": [],
-      "id": "1770332906938"
-    },
-    {
-      "name": "t2",
-      "attributes": [],
-      "id": "1770332909818"
-    },
-    {
-      "name": "t1",
-      "attributes": [
-        {
-          "name": "a1",
-          "type": "Text"
-        },
-        {
-          "name": "a2",
-          "type": "Link",
-          "linkedTypeId": "1770332957440"
-        }
-      ],
-      "id": "1770332953111"
-    },
-    {
-      "name": "t2",
-      "attributes": [],
-      "id": "1770332957440"
-    },
-    {
-      "name": "t3",
-      "attributes": [],
-      "id": "1770332960871"
-    },
-    {
-      "name": "t1",
-      "attributes": [],
-      "id": "1770333223845"
-    },
-    {
-      "name": "t2",
-      "attributes": [],
-      "id": "1770333226913"
+      "id": "1770383422746"
     }
   ],
   "entities": [
