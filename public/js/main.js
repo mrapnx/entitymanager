@@ -146,13 +146,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="type-header">
                     <h3 class="type-name-display"></h3>
                     <div>
-                        <button class="edit-type-btn">Edit Name</button>
-                        <button class="delete-type-btn">Delete Type</button>
+                        <button class="edit-type-btn">Name bearbeiten</button>
+                        <button class="delete-type-btn">Typ löschen</button>
                     </div>
                 </div>
                 <div class="attributes-list"></div>
                 <div class="add-attribute-form-container" style="display:none;"></div>
-                <button class="add-attribute-btn">Add Attribute</button>
+                <button class="add-attribute-btn">Neues Attribut</button>
             `;
             // Use textContent to prevent HTML injection issues with type names
             typeElement.querySelector('.type-name-display').textContent = type.name;
@@ -196,8 +196,12 @@ document.addEventListener('DOMContentLoaded', () => {
             attrElement.classList.add('attribute-item');
             attrElement.dataset.index = index;
             attrElement.innerHTML = `
-                <span></span>
-                <button class="delete-attribute-btn" data-index="${index}">Delete</button>
+                <div class="drag-handle" style="cursor: grab; margin-right: 10px;">☰</div>
+                <span style="flex-grow: 1;"></span>
+                <div>
+                  <button class="edit-attribute-btn" data-index="${index}">Bearbeiten</button>
+                  <button class="delete-attribute-btn" data-index="${index}">Löschen</button>
+                </div>
             `;
             
             let typeDisplay = attr.type;
@@ -214,6 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.Sortable) {
             Sortable.create(attributesList, {
                 animation: 150,
+                handle: '.drag-handle', // Restrict drag to the handle
                 onEnd: async (evt) => {
                     const [removed] = type.attributes.splice(evt.oldIndex, 1);
                     type.attributes.splice(evt.newIndex, 0, removed);
@@ -238,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formContainer.style.display = 'block';
         if(addButton) addButton.style.display = 'none';
 
-        const linkTypeOptions = '<option value="">Any Type</option>' + data.types.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        const linkTypeOptions = '<option value="">Jeder Typ</option>' + data.types.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
         formContainer.innerHTML = `
             <input type="text" class="new-attr-name" placeholder="Attribute Name" style="margin-bottom: 5px;">
@@ -249,13 +254,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <option>Link</option>
             </select>
             <div class="link-type-select-container" style="display:none; margin-bottom: 5px;">
-                <label>Target Type:</label>
+                <label>Zieltyp:</label>
                 <select class="new-attr-link-type">
                     ${linkTypeOptions}
                 </select>
             </div>
-            <button class="save-attribute-btn">Save</button>
-            <button class="cancel-attribute-btn">Cancel</button>
+            <button class="save-attribute-btn">Speichern</button>
+            <button class="cancel-attribute-btn">Abbrechen</button>
         `;
 
         formContainer.querySelector('.new-attr-type').addEventListener('change', e => {
@@ -387,6 +392,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 const attrIndex = parseInt(target.dataset.index, 10);
                 if (confirm('Are you sure you want to delete this attribute?')) {
                     type.attributes.splice(attrIndex, 1);
+                    await updateTypeOnServer(typeId);
+                    renderAttributesList(typeId);
+                    renderCurrentView();
+                }
+            }
+            // --- Edit Attribute ---
+            else if (target.classList.contains('edit-attribute-btn')) {
+                const attrIndex = parseInt(target.dataset.index, 10);
+                const attr = type.attributes[attrIndex];
+                const newName = prompt('Enter new attribute name:', attr.name);
+                
+                if (newName && newName.trim() !== '' && newName !== attr.name) {
+                    // Update attribute name in type definition
+                    const oldName = attr.name;
+                    attr.name = newName.trim();
+
+                    // Rename attribute in all entities of this type
+                    const entitiesToUpdate = data.entities.filter(e => e.typeId === typeId);
+                    for (const entity of entitiesToUpdate) {
+                        if (entity.attributes.hasOwnProperty(oldName)) {
+                            entity.attributes[attr.name] = entity.attributes[oldName];
+                            delete entity.attributes[oldName];
+                            
+                            // Update entity on server
+                            await fetch(`/api/entities/${entity.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(entity)
+                            });
+                        }
+                    }
+
                     await updateTypeOnServer(typeId);
                     renderAttributesList(typeId);
                     renderCurrentView();

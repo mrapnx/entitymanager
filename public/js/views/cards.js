@@ -6,7 +6,7 @@ window.renderCards = ({ data, renderCurrentView, openNewEntityModal, openEntity,
     const filterContainer = document.querySelector('#cards-view .filter-container');
     
     // --- Render Filter Chips ---
-    filterContainer.innerHTML = '<span>Filter by Type:</span>';
+    filterContainer.innerHTML = '<span>Filter nach Typ:</span>';
     data.types.forEach(type => {
         const chip = document.createElement('div');
         chip.classList.add('filter-chip');

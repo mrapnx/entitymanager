@@ -15,24 +15,20 @@
                 <nav>
                     <button id="cards-view-btn" class="active">Karten</button>
                     <button id="table-view-btn">Tabelle</button>
-                    <button id="mindmap-view-btn">Mindmap</button>
+                    <button id="mindmap-view-btn">Map</button>
                 </nav>
                 <div class="separator"></div>
-                <button id="new-entity-btn">+ New Entity</button>
-                <button id="config-btn">Configuration</button>
+                <button id="new-entity-btn">+ Neue Entität</button>
+                <button id="config-btn">Konfiguration</button>
             </div>
         </header>
         <main>
             <div id="cards-view" class="view active">
-                <div class="filter-container" id="cards-filter-container">
-                    <!-- Multi-select filter will be rendered here -->
-                </div>
+                <div class="filter-container"></div>
                 <div class="cards-container"></div>
             </div>
             <div id="table-view" class="view">
-                <div class="controls">
-                    <select id="type-select"></select>
-                </div>
+                <div class="filter-container"></div>
                 <div class="table-container"></div>
             </div>
             <div id="mindmap-view" class="view">
@@ -44,36 +40,28 @@
     <div id="config-modal" class="modal">
         <div class="modal-content">
             <span class="close-btn">&times;</span>
-            <h2>Configuration</h2>
-            <section>
-                <h3>Type Management</h3>
-                <div id="type-management">
-                    <!-- Type items will be rendered here by JavaScript -->
-                </div>
-                <div id="new-type-form-container" style="display: none; margin-top: 10px;">
-                    <input type="text" id="new-type-name" placeholder="Enter new type name">
-                    <button id="save-new-type-btn">Save Type</button>
-                    <button id="cancel-new-type-btn">Cancel</button>
-                </div>
-                <button id="new-type-btn" style="margin-top: 10px;">New Type</button>
-            </section>
-            
+            <h2>Konfiguration</h2>
+            <div id="type-management">
+                <!-- Type items will be rendered here by JavaScript -->
+            </div>
+            <div id="new-type-form-container" style="display: none; margin-top: 10px;">
+                <input type="text" id="new-type-name" placeholder="Name des neuen Typen">
+                <button id="save-new-type-btn">Typ Speichern</button>
+                <button id="cancel-new-type-btn">Abbrechen</button>
+           </div>
+            <button id="new-type-btn" style="margin-top: 10px;">Neuer Typ</button>
             <hr>
-            
-            <section>
-                <h3>JSON Import/Export</h3>
-                <p>Backup or restore your data using a JSON file.</p>
-                <input type="file" id="json-import-input" accept=".json" style="display: none;">
-                <button id="json-import-btn">Import from File</button>
-                <button id="json-export-btn">Export to File</button>
-            </section>
+            <h3>JSON Import/Export</h3>
+            <input type="file" id="json-import-input" accept=".json" style="display: none;">
+            <button id="json-import-btn">Import aus Datei</button>
+            <button id="json-export-btn">Export in Datei</button>
         </div>
     </div>
 
     <div id="new-entity-modal" class="modal">
         <div class="modal-content">
             <span class="close-btn">&times;</span>
-            <h2 id="new-entity-modal-title">Create New Entity</h2>
+            <h2 id="new-entity-modal-title">Neue Entität</h2>
             <form id="new-entity-form"></form>
         </div>
     </div>

@@ -1,10 +1,10 @@
 {
   "types": [
     {
-      "name": "t1",
+      "name": "Typ 1",
       "attributes": [
         {
-          "name": "a1",
+          "name": "Text",
           "type": "Text"
         },
         {
@@ -16,14 +16,14 @@
       "id": "1770332582519"
     },
     {
-      "name": "t2sdfsdf",
+      "name": "Typ 2",
       "attributes": [
         {
           "name": "text",
           "type": "Text"
         },
         {
-          "name": "ganzzahl",
+          "name": "Ganzzahl",
           "type": "Ganzzahl"
         },
         {
@@ -42,26 +42,6 @@
         }
       ],
       "id": "1770383422746"
-    },
-    {
-      "name": "t2 neu",
-      "attributes": [],
-      "id": "1770385745573"
-    },
-    {
-      "name": "dfgfdfg",
-      "attributes": [],
-      "id": "1770385933571"
-    },
-    {
-      "name": "99999",
-      "attributes": [],
-      "id": "1770386107303"
-    },
-    {
-      "name": "kllmllml",
-      "attributes": [],
-      "id": "1770386198117"
     }
   ],
   "entities": [
@@ -69,24 +49,15 @@
       "name": "e1",
       "typeId": "1770332582519",
       "attributes": {
-        "a1": "1"
+        "Text": "1"
       },
       "id": "1770332925569"
-    },
-    {
-      "name": "e2",
-      "typeId": "1770332953111",
-      "attributes": {
-        "a1": "böa",
-        "a2": ""
-      },
-      "id": "1770332996124"
     },
     {
       "name": "e3",
       "typeId": "1770332582519",
       "attributes": {
-        "a1": "d"
+        "Text": "d"
       },
       "id": "1770333320628"
     },
@@ -94,13 +65,25 @@
       "name": "sdfdsf",
       "typeId": "1770383422746",
       "attributes": {
-        "text": "",
-        "ganzzahl": "",
-        "dezimalzahl": "",
+        "text": "TextWert",
+        "dezimalzahl": "2",
         "Link": "1770332925569",
-        "Link2": "1770332925569"
+        "Link2": "1770332925569",
+        "Ganzzahl": "1"
       },
       "id": "1770387826211"
+    },
+    {
+      "name": "E2",
+      "typeId": "1770383422746",
+      "attributes": {
+        "text": "text wert",
+        "dezimalzahl": "",
+        "Link": "1770332925569",
+        "Link2": "1770387826211",
+        "Ganzzahl": ""
+      },
+      "id": "1770388414632"
     }
   ]
 }
