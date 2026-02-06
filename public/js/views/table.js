@@ -52,7 +52,7 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
         t.attributes.forEach(attr => {
             allAttributeNames.add(attr.name);
             // We store the attribute type. If multiple types share a name but differ in type, we prioritize numeric for sum row logic if any is numeric.
-            if (!attributeDefs[attr.name] || (attr.type === 'Ganzzahl' || attr.type === 'Dezimalzahl')) {
+            if (!attributeDefs[attr.name] || (attr.type === 'Ganzzahl' || attr.type === 'Dezimalzahl' || attr.type === 'Währung')) {
                 attributeDefs[attr.name] = attr.type;
             }
         });
@@ -79,7 +79,7 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
                 
                 // Handle numbers
                 const attrType = attributeDefs[currentSort.column];
-                if (attrType === 'Ganzzahl' || attrType === 'Dezimalzahl') {
+                if (attrType === 'Ganzzahl' || attrType === 'Dezimalzahl' || attrType === 'Währung') {
                     valA = valA === undefined || valA === '' ? -Infinity : Number(valA);
                     valB = valB === undefined || valB === '' ? -Infinity : Number(valB);
                 } else {
@@ -119,14 +119,7 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(entity)
             });
-            // Re-render to update Sums or other dependent UI if needed
-            // But doing full re-render might lose focus.
-            // For now, let's assume specific row update is not strictly needed for visual feedback since input changes.
-            // BUT Sums need update.
-            // We can trigger a lightweight update or just recalculate sums locally?
-            // Simplest for now: Don't re-render entire table on every keystroke/blur to avoid focus loss, 
-            // but maybe update sums manually or re-render on blur.
-            // Let's re-render on 'change' which fires on blur/enter.
+            // Re-render on change to update Sums
             window.renderTable({ data, renderCurrentView, openNewEntityModal });
         } catch (e) {
             console.error("Failed to update entity", e);
@@ -152,7 +145,7 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
     const sums = {};
     sortedAttributeNames.forEach(attrName => {
         const type = attributeDefs[attrName];
-        if (type === 'Ganzzahl' || type === 'Dezimalzahl') {
+        if (type === 'Ganzzahl' || type === 'Dezimalzahl' || type === 'Währung') {
             sums[attrName] = 0;
         }
     });
@@ -165,7 +158,7 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
         // Editable Name
         tableHTML += `<td><input type="text" class="table-input" data-id="${entity.id}" data-field="name" value="${entity.name}"></td>`;
         
-        // Type (Read-only usually, hard to change type inline due to attribute structure change)
+        // Type (Read-only usually)
         tableHTML += `<td>${type ? type.name : 'Unknown'}</td>`;
         
         sortedAttributeNames.forEach(attrName => {
@@ -174,7 +167,7 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
             const value = entity.attributes[attrName] !== undefined ? entity.attributes[attrName] : '';
             
             // Add to Sum
-            if ((attrType === 'Ganzzahl' || attrType === 'Dezimalzahl') && value !== '') {
+            if ((attrType === 'Ganzzahl' || attrType === 'Dezimalzahl' || attrType === 'Währung') && value !== '') {
                 sums[attrName] += Number(value);
             }
             
@@ -182,10 +175,6 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
 
             if (specificAttrDef) {
                 if (specificAttrDef.type === 'Link') {
-                    // Dropdown for Link
-                    // Only show entities of linked type if defined, otherwise all
-                    // Note: This could be heavy if many entities.
-                    // Filter candidates:
                     const linkedEntities = data.entities.filter(e => !specificAttrDef.linkedTypeId || e.typeId === specificAttrDef.linkedTypeId);
                     
                     let options = `<option value="">-</option>`;
@@ -200,12 +189,21 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
                     cellContent = `<input type="number" step="1" class="table-input" data-id="${entity.id}" data-field="${attrName}" value="${value}">`;
                 } else if (specificAttrDef.type === 'Dezimalzahl') {
                     cellContent = `<input type="number" step="any" class="table-input" data-id="${entity.id}" data-field="${attrName}" value="${value}">`;
+                } else if (specificAttrDef.type === 'Währung') {
+                    // Similar to Decimal but perhaps display currency symbol in cell?
+                    // Input usually doesn't support suffix text nicely without CSS wrapper.
+                    // For inline edit simplicity, just input number.
+                    cellContent = `
+                        <div style="display:flex; align-items:center;">
+                            <input type="number" step="0.01" class="table-input" data-id="${entity.id}" data-field="${attrName}" value="${value}">
+                            <span style="margin-left:4px;">€</span>
+                        </div>
+                    `;
                 } else {
                     // Text
                     cellContent = `<input type="text" class="table-input" data-id="${entity.id}" data-field="${attrName}" value="${value}">`;
                 }
             } else {
-                // Attribute not applicable for this entity type
                 cellContent = '<span class="text-muted">-</span>';
             }
 
@@ -230,7 +228,10 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
         sortedAttributeNames.forEach(attrName => {
             if (sums[attrName] !== undefined) {
                 const sumVal = Math.round((sums[attrName] + Number.EPSILON) * 100) / 100;
-                tableHTML += `<td>${sumVal}</td>`;
+                // Add currency symbol if ANY type in this column is Currency?
+                // The collected definition helps.
+                const isCurrency = attributeDefs[attrName] === 'Währung';
+                tableHTML += `<td>${sumVal}${isCurrency ? ' €' : ''}</td>`;
             } else {
                 tableHTML += '<td></td>';
             }

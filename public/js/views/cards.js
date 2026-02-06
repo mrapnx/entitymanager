@@ -61,6 +61,12 @@ window.renderCards = ({ data, renderCurrentView, openNewEntityModal, openEntity,
                 } else {
                      attributeHTML = `<p><strong>${attr.name}:</strong> <em>None</em></p>`;
                 }
+            } else if (attr.type === 'Währung') {
+                let displayVal = value;
+                if (value !== '' && !isNaN(parseFloat(value))) {
+                    displayVal = parseFloat(value).toFixed(2) + ' €';
+                }
+                attributeHTML = `<p><strong>${attr.name}:</strong> ${displayVal}</p>`;
             } else {
                 attributeHTML = `<p><strong>${attr.name}:</strong> ${value}</p>`;
             }

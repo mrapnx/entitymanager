@@ -15,6 +15,10 @@
           "name": "link",
           "type": "Link",
           "linkedTypeId": "1770332582519"
+        },
+        {
+          "name": "Geld",
+          "type": "Währung"
         }
       ],
       "id": "1770332582519"
@@ -55,7 +59,8 @@
       "attributes": {
         "Text": "te",
         "link": "",
-        "dezimalzahl": "3.5"
+        "dezimalzahl": "3.5",
+        "Geld": "5"
       },
       "id": "1770332925569"
     },
@@ -65,7 +70,7 @@
       "attributes": {
         "Text": "d",
         "link": "1770332925569",
-        "dezimalzahl": "3.5"
+        "dezimalzahl": "1"
       },
       "id": "1770333320628"
     },
@@ -75,7 +80,8 @@
       "attributes": {
         "Text": "t",
         "link": "1770332925569",
-        "dezimalzahl": ""
+        "dezimalzahl": "8",
+        "Geld": "10"
       },
       "id": "1770401905573"
     },
@@ -83,8 +89,8 @@
       "name": "t2e1",
       "typeId": "1770383422746",
       "attributes": {
-        "text": "",
-        "Ganzzahl": "",
+        "text": "hjgj",
+        "Ganzzahl": "5",
         "dezimalzahl": "",
         "Link": "1770333320628",
         "Link2": ""

@@ -201,6 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <option value="Text" ${attr.type === 'Text' ? 'selected' : ''}>Text</option>
                 <option value="Ganzzahl" ${attr.type === 'Ganzzahl' ? 'selected' : ''}>Ganzzahl</option>
                 <option value="Dezimalzahl" ${attr.type === 'Dezimalzahl' ? 'selected' : ''}>Dezimalzahl</option>
+                <option value="Währung" ${attr.type === 'Währung' ? 'selected' : ''}>Währung</option>
                 <option value="Link" ${attr.type === 'Link' ? 'selected' : ''}>Link</option>
             `;
             
@@ -256,6 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <option>Text</option>
                 <option>Ganzzahl</option>
                 <option>Dezimalzahl</option>
+                <option>Währung</option>
                 <option>Link</option>
             </select>
             <div class="link-type-select-container" style="display:none; margin-bottom: 5px;">
@@ -383,6 +385,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                  const parsed = parseInt(val, 10);
                                  entity.attributes[attr.name] = isNaN(parsed) ? '' : parsed; 
                              } else if (newType === 'Dezimalzahl') {
+                                 const parsed = parseFloat(val);
+                                 entity.attributes[attr.name] = isNaN(parsed) ? '' : parsed;
+                             } else if (newType === 'Währung') {
                                  const parsed = parseFloat(val);
                                  entity.attributes[attr.name] = isNaN(parsed) ? '' : parsed;
                              } else if (newType === 'Text') {
@@ -610,6 +615,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         <label for="attr-${attr.name}">${attr.name}:</label>
                         <input type="number" step="any" id="attr-${attr.name}" name="${attr.name}" value="${value}">
                     `;
+                } else if (attr.type === 'Währung') {
+                     fieldHTML = `
+                        <label for="attr-${attr.name}">${attr.name} (€):</label>
+                        <input type="number" step="0.01" id="attr-${attr.name}" name="${attr.name}" value="${value}">
+                    `;
                 } else {
                      fieldHTML = `
                         <label for="attr-${attr.name}">${attr.name}:</label>
@@ -658,6 +668,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             throw new Error('Validation failed');
                         }
                     } else if (attr.type === 'Dezimalzahl') {
+                        if (value !== '' && isNaN(Number(value))) {
+                            alert(`${attr.name} must be a number.`);
+                            throw new Error('Validation failed');
+                        }
+                    } else if (attr.type === 'Währung') {
                         if (value !== '' && isNaN(Number(value))) {
                             alert(`${attr.name} must be a number.`);
                             throw new Error('Validation failed');

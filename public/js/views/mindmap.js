@@ -35,11 +35,6 @@ window.renderMindmap = ({ data, openEntity, openNewEntityModal, renderCurrentVie
     }
 
     // Canvas sizing setup
-    // Subtract header/filter height if needed, but flex/grid CSS usually handles container size.
-    // For simplicity, we trust offsetHeight of the container view minus the filter height?
-    // Actually canvas.height = container.offsetHeight works if the container grows.
-    // But filter container takes up space now.
-    // We should let CSS handle layout, or subtract filter height.
     const filterHeight = filterContainer.offsetHeight;
     const availableHeight = Math.max(container.offsetHeight - filterHeight - 20, 600);
     
@@ -58,17 +53,28 @@ window.renderMindmap = ({ data, openEntity, openNewEntityModal, renderCurrentVie
     }
 
     const NODE_WIDTH = 220; 
-    const NODE_HEIGHT = 120;
     const H_GAP = 350; 
-    const V_GAP = 160; 
     const PADDING = 10;
-    
     const BTN_SIZE = 24;
     const BTN_PADDING = 5; 
-    
+
     // --- Layout Data Preparation ---
+    let maxNodeHeight = 120; // Track max height for V_GAP
+
     const nodes = filteredEntities.map(entity => {
         const type = data.types.find(t => t.id === entity.typeId);
+        
+        // Calculate dynamic height based on non-link attributes
+        let visibleAttrCount = 0;
+        if (type && type.attributes) {
+            visibleAttrCount = type.attributes.filter(a => a.type !== 'Link').length;
+        }
+        // Base height (header + separator + padding) ~ 70px. Each attribute ~18px. Min height 120.
+        const calculatedHeight = 70 + (visibleAttrCount * 18) + 10;
+        const height = Math.max(120, calculatedHeight);
+        
+        if (height > maxNodeHeight) maxNodeHeight = height;
+
         return {
             id: entity.id,
             entity: entity,
@@ -77,10 +83,13 @@ window.renderMindmap = ({ data, openEntity, openNewEntityModal, renderCurrentVie
             x: 0,
             y: 0,
             width: NODE_WIDTH,
-            height: NODE_HEIGHT,
+            height: height,
             rank: -1
         };
     });
+
+    // Set V_GAP based on the tallest node found + spacing
+    const V_GAP = maxNodeHeight + 40; 
 
     const nodeMap = new Map(nodes.map(node => [node.id, node]));
 
@@ -259,27 +268,27 @@ window.renderMindmap = ({ data, openEntity, openNewEntityModal, renderCurrentVie
         ctx.fillStyle = '#1c1e21';
         
         if (node.type && node.type.attributes) {
-            let count = 0;
             for (const attr of node.type.attributes) {
-                if (count >= 2) break; 
+                // Skip rendering link attributes text as requested
+                if (attr.type === 'Link') continue;
+                
                 const val = node.entity.attributes[attr.name];
                 let displayVal = val || '-';
                 
-                if (attr.type === 'Link') {
-                     const linked = data.entities.find(e => e.id === val);
-                     displayVal = linked ? linked.name : (val ? 'Unknown' : 'None');
+                if (attr.type === 'Währung') {
+                     if (val !== '' && !isNaN(parseFloat(val))) {
+                         displayVal = parseFloat(val).toFixed(2) + ' €';
+                     }
                 }
                 
                 const text = `${attr.name}: ${displayVal}`;
                 ctx.fillText(text, x + PADDING, attrY);
                 attrY += 18;
-                count++;
             }
         }
 
         // --- Draw Action Buttons ---
         const btns = getButtonCoords(node);
-        const radius = 4; // corner radius for buttons
 
         // Edit Button
         ctx.fillStyle = '#f0f2f5';
@@ -289,10 +298,10 @@ window.renderMindmap = ({ data, openEntity, openNewEntityModal, renderCurrentVie
         ctx.strokeRect(btns.edit.x, btns.edit.y, btns.edit.w, btns.edit.h);
         
         ctx.fillStyle = '#606770';
-        ctx.font = '16px serif'; // Use serif or specific font for symbol
+        ctx.font = '16px serif'; 
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('✎', btns.edit.x + btns.edit.w/2, btns.edit.y + btns.edit.h/2 + 1); // +1 for visual centering
+        ctx.fillText('✎', btns.edit.x + btns.edit.w/2, btns.edit.y + btns.edit.h/2 + 1);
 
         // Delete Button
         ctx.fillStyle = '#f0f2f5';
