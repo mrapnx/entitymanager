@@ -50,14 +50,14 @@ window.renderCards = ({ data, renderCurrentView, openNewEntityModal, openEntity,
         }
 
         card.innerHTML = `
+            <div class="card-top-actions">
+                <button class="edit-entity-btn" data-id="${entity.id}" title="Edit">✎</button>
+                <button class="delete-entity-btn" data-id="${entity.id}" title="Delete">🗑</button>
+            </div>
             <h3>${entity.name}</h3>
             <p><em>${type.name}</em></p>
             <div class="attributes-section">${attributesHTML}</div>
             <div class="backlinks-section">${backlinksHTML}</div>
-            <div class="card-actions">
-                <button class="edit-entity-btn" data-id="${entity.id}">Edit</button>
-                <button class="delete-entity-btn" data-id="${entity.id}">Delete</button>
-            </div>
         `;
 
         cardsContainer.appendChild(card);
@@ -65,24 +65,45 @@ window.renderCards = ({ data, renderCurrentView, openNewEntityModal, openEntity,
 
     // --- Event Listeners for Cards ---
     // Note: Using event delegation on the container for dynamically added cards
-    cardsContainer.addEventListener('click', async (event) => {
+    // Removing previous listener to prevent multiple calls if renderCards is called multiple times
+    const newCardsContainer = cardsContainer.cloneNode(true);
+    cardsContainer.parentNode.replaceChild(newCardsContainer, cardsContainer);
+
+    newCardsContainer.addEventListener('click', async (event) => {
         const target = event.target;
+        console.log('[DEBUG] Card container clicked, target:', target);
 
         if (target.classList.contains('edit-entity-btn')) {
-            openNewEntityModal(target.dataset.id);
+            const id = target.getAttribute('data-id');
+            console.log('[DEBUG] Edit button clicked for ID:', id);
+            openNewEntityModal(id);
         }
 
         else if (target.classList.contains('delete-entity-btn')) {
-            const entityIdToDelete = target.dataset.id;
+            const entityIdToDelete = target.getAttribute('data-id');
+            console.log('[DEBUG] Delete button clicked for ID:', entityIdToDelete);
             if (confirm('Are you sure you want to delete this entity?')) {
-                await fetch(`/api/entities/${entityIdToDelete}`, { method: 'DELETE' });
-                await renderCurrentView(); // Reload data and re-render
+                console.log(`[DEBUG] Attempting DELETE request for /api/entities/${entityIdToDelete}`);
+                try {
+                    const response = await fetch(`/api/entities/${entityIdToDelete}`, { method: 'DELETE' });
+                    console.log('[DEBUG] DELETE response status:', response.status);
+                    if (response.ok) {
+                        console.log('[DEBUG] DELETE successful, calling renderCurrentView (loadData)');
+                        await renderCurrentView(); 
+                    } else {
+                        console.error('[DEBUG] DELETE failed on server.');
+                    }
+                } catch (err) {
+                    console.error('[DEBUG] Fetch error during DELETE:', err);
+                }
             }
         }
 
         else if (target.classList.contains('entity-link')) {
             event.preventDefault();
-            openEntity(target.dataset.id);
+            const id = target.getAttribute('data-id');
+            console.log('[DEBUG] Entity link clicked for ID:', id);
+            openEntity(id);
         }
     });
 };

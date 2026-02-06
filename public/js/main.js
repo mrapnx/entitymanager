@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderCurrentView = () => {
         console.log(`[DEBUG] Rendering current view: ${activeView}`);
         // We pass the core functions to the views so they can trigger actions
-        const viewDependencies = { data, renderCurrentView, openNewEntityModal, openEntity, highlightEntity };
+        const viewDependencies = { data, renderCurrentView: loadData, openNewEntityModal, openEntity, highlightEntity };
         if (activeView === 'cards') {
             window.renderCards(viewDependencies);
         } else if (activeView === 'table') {
@@ -180,12 +180,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Find the correct type element and then the attributes list inside it
         const typeElement = typeManagementContainer.querySelector(`.type-item[data-id="${typeId}"]`);
         if (!typeElement) {
-            console.error(`[DEBUG] Could not find .type-item[data-id="${typeId}"] in DOM.`);
+            console.error(`[DEBUG] Could find .type-item[data-id="${typeId}"] in DOM.`);
             return;
         }
         const attributesList = typeElement.querySelector('.attributes-list');
         if (!attributesList) {
-            console.error(`[DEBUG] Could not find .attributes-list within type element for ID ${typeId}.`);
+            console.error(`[DEBUG] Could find .attributes-list within type element for ID ${typeId}.`);
             return;
         }
         
@@ -464,6 +464,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${options}
                         </select>
                     `;
+                } else if (attr.type === 'Ganzzahl') {
+                    fieldHTML = `
+                        <label for="attr-${attr.name}">${attr.name}:</label>
+                        <input type="number" step="1" id="attr-${attr.name}" name="${attr.name}" value="${value}">
+                    `;
+                } else if (attr.type === 'Dezimalzahl') {
+                    fieldHTML = `
+                        <label for="attr-${attr.name}">${attr.name}:</label>
+                        <input type="number" step="any" id="attr-${attr.name}" name="${attr.name}" value="${value}">
+                    `;
                 } else {
                      fieldHTML = `
                         <label for="attr-${attr.name}">${attr.name}:</label>
@@ -503,7 +513,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const attributes = {};
             if (type) {
                 type.attributes.forEach(attr => {
-                    attributes[attr.name] = formData.get(attr.name) || '';
+                    const value = formData.get(attr.name);
+                    
+                    // Simple Validation
+                    if (attr.type === 'Ganzzahl') {
+                        if (value !== '' && !Number.isInteger(Number(value))) {
+                            alert(`${attr.name} must be a whole number.`);
+                            throw new Error('Validation failed');
+                        }
+                    } else if (attr.type === 'Dezimalzahl') {
+                        if (value !== '' && isNaN(Number(value))) {
+                            alert(`${attr.name} must be a number.`);
+                            throw new Error('Validation failed');
+                        }
+                    }
+
+                    attributes[attr.name] = value || '';
                 });
             }
             const entityData = {

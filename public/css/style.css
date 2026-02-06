@@ -95,6 +95,7 @@ main {
     padding: 15px;
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     transition: box-shadow 0.3s, transform 0.3s;
+    position: relative; /* For absolute positioning of action icons */
 }
 
 .card:hover {
@@ -103,6 +104,7 @@ main {
 
 .card h3 {
     margin-top: 0;
+    margin-right: 60px; /* Space for icons */
     color: #1c1e21;
 }
 
@@ -118,6 +120,28 @@ main {
 .card.highlight {
     box-shadow: 0 0 0 3px #1877f2;
 }
+
+.card-top-actions {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 8px;
+}
+
+.card-top-actions button {
+    background: none;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    font-size: 18px;
+    color: #606770;
+    transition: color 0.2s;
+    line-height: 1;
+}
+
+.card-top-actions .edit-entity-btn:hover { color: #1877f2; }
+.card-top-actions .delete-entity-btn:hover { color: #fa3e3e; }
 
 /* Modals */
 .modal {
@@ -205,6 +229,7 @@ main {
 }
 
 #new-entity-form input[type="text"],
+#new-entity-form input[type="number"],
 #new-entity-form select {
     width: 100%;
     padding: 8px;
