@@ -100,6 +100,40 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
         return currentSort.direction === 'asc' ? ' <span class="sort-icon">↑</span>' : ' <span class="sort-icon">↓</span>';
     };
 
+    // --- Helper: Update Entity on Change ---
+    const updateEntityField = async (entityId, fieldName, value) => {
+        const entity = data.entities.find(e => e.id === entityId);
+        if (!entity) return;
+
+        // If fieldName is 'name', update top-level property
+        if (fieldName === 'name') {
+            entity.name = value;
+        } else {
+            // Otherwise, update attributes
+            entity.attributes[fieldName] = value;
+        }
+
+        try {
+            await fetch(`/api/entities/${entityId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(entity)
+            });
+            // Re-render to update Sums or other dependent UI if needed
+            // But doing full re-render might lose focus.
+            // For now, let's assume specific row update is not strictly needed for visual feedback since input changes.
+            // BUT Sums need update.
+            // We can trigger a lightweight update or just recalculate sums locally?
+            // Simplest for now: Don't re-render entire table on every keystroke/blur to avoid focus loss, 
+            // but maybe update sums manually or re-render on blur.
+            // Let's re-render on 'change' which fires on blur/enter.
+            window.renderTable({ data, renderCurrentView, openNewEntityModal });
+        } catch (e) {
+            console.error("Failed to update entity", e);
+            alert("Fehler beim Speichern.");
+        }
+    };
+
     // --- Table Header ---
     let tableHTML = '<table class="entity-table">';
     tableHTML += '<thead><tr>';
@@ -127,32 +161,51 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
         const type = data.types.find(t => t.id === entity.typeId);
         
         tableHTML += `<tr>`;
-        tableHTML += `<td>${entity.name}</td>`;
+        
+        // Editable Name
+        tableHTML += `<td><input type="text" class="table-input" data-id="${entity.id}" data-field="name" value="${entity.name}"></td>`;
+        
+        // Type (Read-only usually, hard to change type inline due to attribute structure change)
         tableHTML += `<td>${type ? type.name : 'Unknown'}</td>`;
         
         sortedAttributeNames.forEach(attrName => {
-            const attrType = attributeDefs[attrName]; // Use collected definition or type from entity? Collected is safer for col consistency.
-            const value = entity.attributes[attrName];
+            const attrType = attributeDefs[attrName]; 
+            const specificAttrDef = type ? type.attributes.find(a => a.name === attrName) : null;
+            const value = entity.attributes[attrName] !== undefined ? entity.attributes[attrName] : '';
             
             // Add to Sum
-            if ((attrType === 'Ganzzahl' || attrType === 'Dezimalzahl') && value !== undefined && value !== '') {
+            if ((attrType === 'Ganzzahl' || attrType === 'Dezimalzahl') && value !== '') {
                 sums[attrName] += Number(value);
             }
             
-            let cellContent = value !== undefined ? value : '';
-            
-            // Re-check specific type for this entity to render links correctly if mixed
-            const specificAttrDef = type ? type.attributes.find(a => a.name === attrName) : null;
-            
-            if (specificAttrDef && specificAttrDef.type === 'Link') {
-                 const linkedEntity = data.entities.find(e => e.id === value);
-                 if (linkedEntity) {
-                    const linkedType = data.types.find(t => t.id === linkedEntity.typeId);
-                    cellContent = `<span class="badge link-badge">${linkedType ? linkedType.name : 'Unknown'}: ${linkedEntity.name}</span>`;
-                 } else {
-                     cellContent = '<span class="text-muted">-</span>';
-                 }
-            } else if (cellContent === '') {
+            let cellContent = '';
+
+            if (specificAttrDef) {
+                if (specificAttrDef.type === 'Link') {
+                    // Dropdown for Link
+                    // Only show entities of linked type if defined, otherwise all
+                    // Note: This could be heavy if many entities.
+                    // Filter candidates:
+                    const linkedEntities = data.entities.filter(e => !specificAttrDef.linkedTypeId || e.typeId === specificAttrDef.linkedTypeId);
+                    
+                    let options = `<option value="">-</option>`;
+                    linkedEntities.forEach(le => {
+                        const leType = data.types.find(t => t.id === le.typeId);
+                        const selected = le.id === value ? 'selected' : '';
+                        options += `<option value="${le.id}" ${selected}>${leType ? leType.name : '?'}: ${le.name}</option>`;
+                    });
+                    
+                    cellContent = `<select class="table-select" data-id="${entity.id}" data-field="${attrName}">${options}</select>`;
+                } else if (specificAttrDef.type === 'Ganzzahl') {
+                    cellContent = `<input type="number" step="1" class="table-input" data-id="${entity.id}" data-field="${attrName}" value="${value}">`;
+                } else if (specificAttrDef.type === 'Dezimalzahl') {
+                    cellContent = `<input type="number" step="any" class="table-input" data-id="${entity.id}" data-field="${attrName}" value="${value}">`;
+                } else {
+                    // Text
+                    cellContent = `<input type="text" class="table-input" data-id="${entity.id}" data-field="${attrName}" value="${value}">`;
+                }
+            } else {
+                // Attribute not applicable for this entity type
                 cellContent = '<span class="text-muted">-</span>';
             }
 
@@ -161,7 +214,7 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
 
         tableHTML += `
             <td class="actions">
-                <button class="icon-btn edit-entity-btn" data-id="${entity.id}" title="Edit">✎</button>
+                <button class="icon-btn edit-entity-btn" data-id="${entity.id}" title="Details">✎</button>
                 <button class="icon-btn delete-entity-btn" data-id="${entity.id}" title="Delete">🗑</button>
             </td>
         `;
@@ -169,22 +222,20 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
     });
 
     // --- Sum Row ---
-    // Check if we have any numeric columns to show a sum row
     const hasNumeric = Object.keys(sums).length > 0;
     if (hasNumeric) {
-        tableHTML += '<tr class="sum-row" style="background-color: #f7f7f7; font-weight: bold;">';
-        tableHTML += '<td>Summe</td>'; // Label under Name
-        tableHTML += '<td></td>';     // Empty under Type
+        tableHTML += '<tr class="sum-row">';
+        tableHTML += '<td>Summe</td>'; 
+        tableHTML += '<td></td>';     
         sortedAttributeNames.forEach(attrName => {
             if (sums[attrName] !== undefined) {
-                // Round to avoid floating point errors
                 const sumVal = Math.round((sums[attrName] + Number.EPSILON) * 100) / 100;
                 tableHTML += `<td>${sumVal}</td>`;
             } else {
                 tableHTML += '<td></td>';
             }
         });
-        tableHTML += '<td></td>'; // Actions col
+        tableHTML += '<td></td>'; 
         tableHTML += '</tr>';
     }
 
@@ -210,14 +261,23 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
         };
     });
 
+    // Inline Edit Handling (Delegation)
+    tableContainer.onchange = (event) => {
+        const target = event.target;
+        if (target.classList.contains('table-input') || target.classList.contains('table-select')) {
+            const entityId = target.dataset.id;
+            const field = target.dataset.field;
+            const value = target.value;
+            updateEntityField(entityId, field, value);
+        }
+    };
 
     tableContainer.onclick = async (event) => {
         const target = event.target;
         
         // Handle sort click propagation if clicking on icon inside th
         if (target.closest('th.sortable')) {
-             // Handled by specific listener above, but propagation might bubble here if we used delegation.
-             // Since we attached directly to elements above, we are good.
+             // handled above
         }
 
         if (target.classList.contains('edit-entity-btn')) {

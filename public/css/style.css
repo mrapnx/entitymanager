@@ -202,6 +202,24 @@ main {
     background-color: #f0f2f5;
 }
 
+/* Inline Edit Styles */
+.table-input, .table-select {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid transparent; /* Hide border until focus/hover */
+    border-radius: 4px;
+    background-color: transparent;
+    font-size: 14px;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.table-input:hover, .table-select:hover,
+.table-input:focus, .table-select:focus {
+    border-color: #ccc;
+    background-color: #fff;
+}
+
 /* Sum Row Styling */
 .entity-table tr.sum-row {
     background-color: #f0f2f5;
