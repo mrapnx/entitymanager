@@ -1,15 +1,9 @@
 version: '3.8'
-
 services:
   app:
     build: .
-    container_name: entity_manager_2
-    # Mapped Port 8080 auf deinem Rechner auf Port 3000 im Container
+    container_name: EntityManager_v2
     ports:
-      - "8080:3000"
+      - "3000:3000"
     volumes:
-      # Persistente Speicherung:
-      # Der lokale Ordner './data' wird in den Container gemountet.
-      # Dort landet die db.json.
-      - /opt/entity_manager-data:/app/data
-    restart: unless-stopped
+      - ./data:/usr/src/app/data

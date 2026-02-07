@@ -1,21 +1,13 @@
-# Basis Image
-FROM node:18-alpine
+FROM node:18
 
-# Verzeichnis
-WORKDIR /app
+WORKDIR /usr/src/app
 
-# Dependencies
-RUN npm init -y && npm install express
+COPY package*.json ./
 
-# Files
-COPY server.js .
-COPY entity_manager.html .
+RUN npm install
 
-# Data Volume Ordner
-RUN mkdir -p /app/data
+COPY . .
 
-# Port
 EXPOSE 3000
 
-# Start
-CMD ["node", "server.js"]
+CMD [ "npm", "start" ]

@@ -1,0 +1,13 @@
+{
+  "name": "dynamic-entity-manager-v4",
+  "version": "1.0.0",
+  "description": "Dynamic Entity Manager v4",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "xml-js": "^1.6.11"
+  }
+}
