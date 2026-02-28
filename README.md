@@ -1,8 +1,5 @@
-# Project Title
+# Entity Manager
 
-Get started by customizing your environment (defined in the .idx/dev.nix file) with the tools and IDE extensions you'll need for your project!
-
-Learn more at https://developers.google.com/idx/guides/customize-idx-env
 
 ## Deployment
 
@@ -12,12 +9,12 @@ To deploy this application using Docker, follow these steps:
 
 1.  **Build the Docker image:**
     ```bash
-    docker build -t my-app .
+    docker build -t entitymanager .
     ```
 
 2.  **Run the Docker container:**
     ```bash
-    docker run -p 3000:3000 -v ./data:/usr/src/app/data my-app
+    docker run -p 3000:3000 -v ./data:/usr/src/app/data entitymanager
     ```
 
     Alternatively, you can use Docker Compose:
