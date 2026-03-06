@@ -661,8 +661,14 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         newEntityForm.querySelector('#entity-type').addEventListener('change', (e) => {
-            renderNewEntityForm(e.target.value, entity);
+            // Preserve the current name when switching types
+            // If entity is null (new entity), we create a temporary object to hold the name
+            const currentName = newEntityForm.querySelector('#entity-name').value;
+            const preservedEntity = entity ? { ...entity, name: currentName } : { name: currentName, attributes: {} };
+            renderNewEntityForm(e.target.value, preservedEntity);
         });
+
+
     };
 
     if (newEntityForm) {
