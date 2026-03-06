@@ -175,7 +175,19 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
 
             if (specificAttrDef) {
                 if (specificAttrDef.type === 'Link') {
+                    // Filter entities first
                     const linkedEntities = data.entities.filter(e => !specificAttrDef.linkedTypeId || e.typeId === specificAttrDef.linkedTypeId);
+                    
+                    // Sort them by Type Name, then by Entity Name
+                    linkedEntities.sort((a, b) => {
+                        const typeA = data.types.find(t => t.id === a.typeId)?.name || '';
+                        const typeB = data.types.find(t => t.id === b.typeId)?.name || '';
+                        
+                        const typeComparison = typeA.localeCompare(typeB, undefined, {sensitivity: 'base'});
+                        if (typeComparison !== 0) return typeComparison;
+                        
+                        return a.name.localeCompare(b.name, undefined, {sensitivity: 'base'});
+                    });
                     
                     let options = `<option value="">-</option>`;
                     linkedEntities.forEach(le => {

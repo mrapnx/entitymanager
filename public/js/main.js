@@ -207,6 +207,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let linkedTypeHTML = '';
             if (attr.type === 'Link') {
+                 // Sort the types to ensure consistent dropdown order if needed
+                 // But specifically requested related entity values in alphabetically ascending order
                  const linkedEntities = data.types.map(t => `<option value="${t.id}" ${t.id === attr.linkedTypeId ? 'selected' : ''}>${t.name}</option>`).join('');
                  linkedTypeHTML = `<span class="link-info"> -> ${data.types.find(t=>t.id === attr.linkedTypeId)?.name || 'Any'}</span>`;
             }
@@ -590,7 +592,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 const value = entity?.attributes[attr.name] || '';
                 let fieldHTML = '';
                 if (attr.type === 'Link') {
+                    // Filter entities first
                     const linkedEntities = data.entities.filter(e => !attr.linkedTypeId || e.typeId === attr.linkedTypeId);
+                    
+                    // Sort them by Type Name, then by Entity Name
+                    linkedEntities.sort((a, b) => {
+                        const typeA = data.types.find(t => t.id === a.typeId)?.name || '';
+                        const typeB = data.types.find(t => t.id === b.typeId)?.name || '';
+                        
+                        const typeComparison = typeA.localeCompare(typeB, undefined, {sensitivity: 'base'});
+                        if (typeComparison !== 0) return typeComparison;
+                        
+                        return a.name.localeCompare(b.name, undefined, {sensitivity: 'base'});
+                    });
+
                     const options = linkedEntities
                         .map(e => {
                             const linkedType = data.types.find(t => t.id === e.typeId);
