@@ -7,19 +7,23 @@ window.renderCards = ({ data, renderCurrentView, openNewEntityModal, openEntity,
     
     // --- Render Filter Chips ---
     filterContainer.innerHTML = '<span>Filter nach Typ:</span>';
+    
+    // Use shared state if available
+    const activeFilters = window.appState ? window.appState.selectedTypeIds : selectedTypeIds;
+
     data.types.forEach(type => {
         const chip = document.createElement('div');
         chip.classList.add('filter-chip');
-        if (selectedTypeIds.has(type.id)) {
+        if (activeFilters.has(type.id)) {
             chip.classList.add('active');
         }
         chip.textContent = type.name;
         chip.dataset.id = type.id;
         chip.addEventListener('click', () => {
-            if (selectedTypeIds.has(type.id)) {
-                selectedTypeIds.delete(type.id);
+            if (activeFilters.has(type.id)) {
+                activeFilters.delete(type.id);
             } else {
-                selectedTypeIds.add(type.id);
+                activeFilters.add(type.id);
             }
             // Re-render the cards with the new filter
             window.renderCards({ data, renderCurrentView, openNewEntityModal, openEntity, highlightEntity });
@@ -30,9 +34,9 @@ window.renderCards = ({ data, renderCurrentView, openNewEntityModal, openEntity,
     // --- Render Cards ---
     cardsContainer.innerHTML = ''; // Clear previous render
 
-    const filteredEntities = selectedTypeIds.size === 0 
+    const filteredEntities = activeFilters.size === 0 
         ? data.entities 
-        : data.entities.filter(e => selectedTypeIds.has(e.typeId));
+        : data.entities.filter(e => activeFilters.has(e.typeId));
 
     if (!filteredEntities || filteredEntities.length === 0) {
         cardsContainer.innerHTML = '<p>No entities found matching the selected filters.</p>';

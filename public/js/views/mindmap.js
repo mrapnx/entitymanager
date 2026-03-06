@@ -11,16 +11,20 @@ window.renderMindmap = ({ data, openEntity, openNewEntityModal, renderCurrentVie
     data.types.forEach(type => {
         const chip = document.createElement('div');
         chip.classList.add('filter-chip');
-        if (mapSelectedTypeIds.has(type.id)) {
+        
+        // Use shared state if available, else local
+        const selectedIds = window.appState ? window.appState.selectedTypeIds : mapSelectedTypeIds;
+        
+        if (selectedIds.has(type.id)) {
             chip.classList.add('active');
         }
         chip.textContent = type.name;
         chip.dataset.id = type.id;
         chip.addEventListener('click', () => {
-            if (mapSelectedTypeIds.has(type.id)) {
-                mapSelectedTypeIds.delete(type.id);
+            if (selectedIds.has(type.id)) {
+                selectedIds.delete(type.id);
             } else {
-                mapSelectedTypeIds.add(type.id);
+                selectedIds.add(type.id);
             }
             // Re-render the map with the new filter
             window.renderMindmap({ data, openEntity, openNewEntityModal, renderCurrentView });
@@ -29,9 +33,12 @@ window.renderMindmap = ({ data, openEntity, openNewEntityModal, renderCurrentVie
     });
 
     // --- Filter Entities ---
+    // Use shared state if available, else local
+    const selectedIds = window.appState ? window.appState.selectedTypeIds : mapSelectedTypeIds;
+    
     let filteredEntities = data.entities;
-    if (mapSelectedTypeIds.size > 0) {
-        filteredEntities = data.entities.filter(e => mapSelectedTypeIds.has(e.typeId));
+    if (selectedIds.size > 0) {
+        filteredEntities = data.entities.filter(e => selectedIds.has(e.typeId));
     }
 
     // Canvas sizing setup

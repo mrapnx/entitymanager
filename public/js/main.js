@@ -38,6 +38,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let data = { types: [], entities: [] };
     let activeView = 'cards';
     let editingEntityId = null;
+    
+    // --- Shared View State ---
+    // We attach this to window so views can access and modify it
+    window.appState = {
+        selectedTypeIds: new Set()
+    };
 
     // --- Core Functions ---
 
@@ -667,7 +673,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const preservedEntity = entity ? { ...entity, name: currentName } : { name: currentName, attributes: {} };
             renderNewEntityForm(e.target.value, preservedEntity);
         });
-
 
     };
 

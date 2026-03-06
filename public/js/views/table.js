@@ -1,10 +1,10 @@
-// Store the selected type IDs for filtering (shared with Cards view theoretically, but local scope here)
-// To keep consistency, we can attach it to the window or use a shared state.
-// For now, let's keep it consistent within the view module.
-let tableSelectedTypeIds = new Set();
+
 let currentSort = { column: null, direction: 'asc' }; // 'asc' or 'desc'
 
 window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
+    // Use shared state from window.appState
+    const selectedTypeIds = window.appState ? window.appState.selectedTypeIds : new Set();
+
     const tableContainer = document.querySelector('#table-view .table-container');
     const filterContainer = document.querySelector('#table-view .filter-container');
 
@@ -13,16 +13,16 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
     data.types.forEach(type => {
         const chip = document.createElement('div');
         chip.classList.add('filter-chip');
-        if (tableSelectedTypeIds.has(type.id)) {
+        if (selectedTypeIds.has(type.id)) {
             chip.classList.add('active');
         }
         chip.textContent = type.name;
         chip.dataset.id = type.id;
         chip.addEventListener('click', () => {
-            if (tableSelectedTypeIds.has(type.id)) {
-                tableSelectedTypeIds.delete(type.id);
+            if (selectedTypeIds.has(type.id)) {
+                selectedTypeIds.delete(type.id);
             } else {
-                tableSelectedTypeIds.add(type.id);
+                selectedTypeIds.add(type.id);
             }
             // Re-render the table with the new filter
             window.renderTable({ data, renderCurrentView, openNewEntityModal });
@@ -31,9 +31,9 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
     });
 
     // --- Filter Entities ---
-    let filteredEntities = tableSelectedTypeIds.size === 0 
+    let filteredEntities = selectedTypeIds.size === 0 
         ? data.entities 
-        : data.entities.filter(e => tableSelectedTypeIds.has(e.typeId));
+        : data.entities.filter(e => selectedTypeIds.has(e.typeId));
 
     if (!filteredEntities || filteredEntities.length === 0) {
         tableContainer.innerHTML = '<p>No entities found matching the selected filters.</p>';
