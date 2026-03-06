@@ -22,6 +22,7 @@ To deploy this application using Docker, follow these steps:
     docker-compose up
     ```
 3. **Updating the container**
+    Stop any existing container if running
    ```
     docker compose up --build --force-recreate
    ```
