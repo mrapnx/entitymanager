@@ -190,7 +190,7 @@ window.renderMindmap = ({ data, openEntity, openNewEntityModal, renderCurrentVie
     });
 
     const paddingX = 100;
-    const paddingY = 100;
+    const paddingY = 50;
     const contentWidth = maxX - minX + paddingX * 2;
     const contentHeight = maxY - minY + paddingY * 2;
 
@@ -202,7 +202,7 @@ window.renderMindmap = ({ data, openEntity, openNewEntityModal, renderCurrentVie
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const offsetX = (canvas.width - (maxX - minX)) / 2 - minX;
-    const offsetY = (canvas.height - (maxY - minY)) / 2 - minY;
+    const offsetY = paddingY - minY;
 
     nodes.forEach(n => {
         n.x += offsetX;
