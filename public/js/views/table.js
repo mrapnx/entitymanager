@@ -30,6 +30,25 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
         filterContainer.appendChild(chip);
     });
 
+    // --- CSV Export Button ---
+    // Check if button already exists to avoid duplicates if re-rendering chips only
+    let exportBtn = document.getElementById('csv-export-btn');
+    if (!exportBtn) {
+        exportBtn = document.createElement('button');
+        exportBtn.id = 'csv-export-btn';
+        exportBtn.textContent = 'CSV Export';
+        exportBtn.className = 'action-btn'; // Use a standard class if available
+        exportBtn.style.marginLeft = '10px';
+        filterContainer.appendChild(exportBtn);
+        
+        exportBtn.addEventListener('click', () => {
+            exportToCSV();
+        });
+    } else {
+        // Ensure it's at the end
+        filterContainer.appendChild(exportBtn);
+    }
+
     // --- Filter Entities ---
     let filteredEntities = selectedTypeIds.size === 0 
         ? data.entities 
@@ -93,6 +112,68 @@ window.renderTable = ({ data, renderCurrentView, openNewEntityModal }) => {
             return 0;
         });
     }
+
+    // --- CSV Export Function ---
+    const exportToCSV = () => {
+        if (!filteredEntities || filteredEntities.length === 0) {
+            alert('No data to export.');
+            return;
+        }
+
+        // 1. Header Row
+        let csvContent = "data:text/csv;charset=utf-8,";
+        const header = ['Name', 'Type', ...sortedAttributeNames];
+        csvContent += header.join(",") + "\r\n";
+
+        // 2. Data Rows (using the currently sorted and filtered 'filteredEntities')
+        filteredEntities.forEach(entity => {
+            const type = data.types.find(t => t.id === entity.typeId);
+            const row = [];
+            
+            // Name
+            row.push(`"${entity.name.replace(/"/g, '""')}"`); // Escape quotes
+            
+            // Type
+            row.push(`"${type ? type.name.replace(/"/g, '""') : 'Unknown'}"`);
+
+            // Attributes
+            sortedAttributeNames.forEach(attrName => {
+                let value = entity.attributes[attrName];
+                
+                // Format specific types if needed
+                const attrType = attributeDefs[attrName];
+                if (attrType === 'Link') {
+                    // Resolve Link ID to Name
+                    const linkedEntity = data.entities.find(e => e.id === value);
+                    value = linkedEntity ? linkedEntity.name : '';
+                } else if (attrType === 'Währung') {
+                    // Export raw number or formatted? Usually raw number for CSV is better, 
+                    // but user might expect symbol. Let's stick to raw number for calculation ease, 
+                    // or standard decimal.
+                    // If undefined/empty, keep empty.
+                }
+
+                if (value === undefined || value === null) {
+                    value = '';
+                } else {
+                    value = String(value).replace(/"/g, '""'); // Escape double quotes
+                }
+                
+                row.push(`"${value}"`);
+            });
+
+            csvContent += row.join(",") + "\r\n";
+        });
+
+        // 3. Download Trigger
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "table_export.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     // --- Helper to generate sortable header ---
     const getSortIndicator = (colName) => {
