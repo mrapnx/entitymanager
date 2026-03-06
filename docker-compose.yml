@@ -2,8 +2,8 @@ version: '3.8'
 services:
   app:
     build: .
-    container_name: EntityManager_v2
+    container_name: EntityManager
     ports:
       - "3000:3000"
     volumes:
-      - ./data:/usr/src/app/data
+      - /opt/entitymanager-data:/usr/src/app/data
