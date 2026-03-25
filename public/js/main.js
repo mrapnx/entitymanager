@@ -619,8 +619,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             return `<option value="${e.id}" ${e.id === value ? 'selected' : ''}>${typeName}: ${e.name}</option>`;
                         })
                         .join('');
+                        
+                    // For the edit dialog, if a value is selected, provide a quick link to edit it
+                    let quickEditLink = '';
+                    if (value) {
+                        quickEditLink = ` <a href="#" class="modal-link-edit" data-id="${value}" style="font-size: 0.85em; margin-left: 10px;">(Öffnen)</a>`;
+                    }
+                        
                     fieldHTML = `
-                        <label for="attr-${attr.name}">${attr.name}:</label>
+                        <label for="attr-${attr.name}">${attr.name}:${quickEditLink}</label>
                         <select id="attr-${attr.name}" name="${attr.name}">
                             <option value="">None</option>
                             ${options}
@@ -651,6 +658,30 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        // --- Backlinks Section for Edit Dialog ---
+        let backlinksHTML = '';
+        if (entity) {
+            const backlinks = data.entities.filter(potentialLinker => 
+                Object.values(potentialLinker.attributes).includes(entity.id)
+            );
+
+            if (backlinks.length > 0) {
+                let linkList = '';
+                backlinks.forEach(backlink => {
+                    const backlinkType = data.types.find(t => t.id === backlink.typeId);
+                    const typeName = backlinkType ? backlinkType.name : 'Unknown';
+                    linkList += `<li><a href="#" class="modal-backlink" data-id="${backlink.id}">${typeName}: ${backlink.name}</a></li>`;
+                });
+                
+                backlinksHTML = `
+                    <div class="modal-backlinks-section" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #ccc;">
+                        <h4>Verknüpft von (Backlinks):</h4>
+                        <ul style="list-style-type: none; padding-left: 0;">${linkList}</ul>
+                    </div>
+                `;
+            }
+        }
+
         newEntityForm.innerHTML = `
             <label for="entity-name">Name:</label>
             <input type="text" id="entity-name" name="name" value="${entity ? entity.name : ''}" required>
@@ -663,7 +694,9 @@ document.addEventListener('DOMContentLoaded', () => {
             <h3>Attributes</h3>
             <div class="attributes-form-fields">${attributesHTML}</div>
             
-            <button type="submit">${editingEntityId ? 'Update' : 'Create'} Entity</button>
+            ${backlinksHTML}
+            
+            <button type="submit" style="margin-top: 15px;">${editingEntityId ? 'Update' : 'Create'} Entity</button>
         `;
 
         newEntityForm.querySelector('#entity-type').addEventListener('change', (e) => {
@@ -674,6 +707,26 @@ document.addEventListener('DOMContentLoaded', () => {
             renderNewEntityForm(e.target.value, preservedEntity);
         });
 
+        // Add event listeners for the backlink clicks inside the modal
+        const backlinkElements = newEntityForm.querySelectorAll('.modal-backlink');
+        backlinkElements.forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.preventDefault();
+                const id = e.target.getAttribute('data-id');
+                // Open the linked entity in the modal
+                openNewEntityModal(id);
+            });
+        });
+        
+        // Add event listeners for quick edit links on selected attributes
+        const quickEditElements = newEntityForm.querySelectorAll('.modal-link-edit');
+        quickEditElements.forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.preventDefault();
+                const id = e.target.getAttribute('data-id');
+                openNewEntityModal(id);
+            });
+        });
     };
 
     if (newEntityForm) {
