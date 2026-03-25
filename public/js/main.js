@@ -577,7 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editingEntityId = entityId;
         newEntityModal.style.display = 'block';
         const entity = editingEntityId ? data.entities.find(e => e.id === editingEntityId) : null;
-        newEntityModalTitle.textContent = editingEntityId ? 'Edit Entity' : 'Create New Entity';
+        newEntityModalTitle.textContent = editingEntityId ? 'Bearbeiten' : 'Neuen Eintrag anlegen';
         
         const typeId = entity ? entity.typeId : (data.types[0]?.id || null);
         renderNewEntityForm(typeId, entity);
@@ -586,7 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderNewEntityForm = (typeId, entity = null) => {
         newEntityForm.innerHTML = ''; // Clear form
         if (data.types.length === 0) {
-            newEntityForm.innerHTML = '<p>Please create a type in the configuration menu first.</p>';
+            newEntityForm.innerHTML = '<p>Lege erst einen Typ im Konfigurationsmenü an!</p>';
             return;
         }
 
@@ -686,17 +686,17 @@ document.addEventListener('DOMContentLoaded', () => {
             <label for="entity-name">Name:</label>
             <input type="text" id="entity-name" name="name" value="${entity ? entity.name : ''}" required>
             
-            <label for="entity-type">Type:</label>
+            <label for="entity-type">Typ:</label>
             <select id="entity-type" name="typeId">
                 ${data.types.map(t => `<option value="${t.id}" ${t.id === typeId ? 'selected' : ''}>${t.name}</option>`).join('')}
             </select>
             
-            <h3>Attributes</h3>
+            <h3>Attribute</h3>
             <div class="attributes-form-fields">${attributesHTML}</div>
             
             ${backlinksHTML}
             
-            <button type="submit" style="margin-top: 15px;">${editingEntityId ? 'Update' : 'Create'} Entity</button>
+            <button type="submit" style="margin-top: 15px;">${editingEntityId ? 'Aktualisieren' : 'Anlegen'}</button>
         `;
 
         newEntityForm.querySelector('#entity-type').addEventListener('change', (e) => {
