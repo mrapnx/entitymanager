@@ -145,7 +145,8 @@ window.renderCards = ({ data, renderCurrentView, openNewEntityModal, openEntity,
             event.preventDefault();
             const id = target.getAttribute('data-id');
             console.log('[DEBUG] Entity link clicked for ID:', id);
-            openEntity(id);
+            // Changed from openEntity(id) to openNewEntityModal(id) as requested
+            openNewEntityModal(id);
         }
     };
 };
