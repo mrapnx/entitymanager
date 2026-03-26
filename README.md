@@ -19,12 +19,12 @@ To deploy this application using Docker, follow these steps:
 
     Alternatively, you can use Docker Compose:
     ```bash
-    docker-compose up
+    docker-compose up -d
     ```
 3. **Updating the container**
     Stop any existing container if running
    ```
-    docker compose up --build --force-recreate
+    docker compose up -d --build --force-recreate
    ```
 
 ### Manual Deployment
