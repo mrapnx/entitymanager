@@ -6,4 +6,4 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - /opt/entitymanager-data:/usr/src/app/data
+      - ./data:/usr/src/app/data
