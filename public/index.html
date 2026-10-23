@@ -33,7 +33,16 @@
             </div>
             <div id="mindmap-view" class="view">
                 <div class="filter-container"></div>
-                <canvas id="mindmap-canvas"></canvas>
+                <div class="map-toolbar">
+                    <button id="map-zoom-in" title="Hineinzoomen">+</button>
+                    <button id="map-zoom-out" title="Herauszoomen">−</button>
+                    <button id="map-fit" title="An Ansicht anpassen">⤢ Anpassen</button>
+                    <button id="map-unfocus" title="Fokus verlassen" style="display:none;">↩ Gesamtansicht</button>
+                    <span class="map-hint">Ziehen zum Verschieben · Mausrad zum Zoomen · Karte anklicken fokussiert sie</span>
+                </div>
+                <div class="map-canvas-wrapper">
+                    <canvas id="mindmap-canvas"></canvas>
+                </div>
             </div>
         </main>
     </div>
